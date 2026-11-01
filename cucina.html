@@ -1,0 +1,204 @@
+<title>Cucina di Casa</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: app a schede, una colonna stretta, barra di navigazione in basso tipo telefono */
+:root{--bg:#f3f5f1;--card:#ffffff;--fg:#1d2a22;--mute:#647268;--line:#dbe2dc;--accent:#2f7d4f;--warn:#c27a12;--bad:#b8402f;
+--disp:"Fraunces",Georgia,serif;--body:"Atkinson Hyperlegible",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141a16;--card:#1d2520;--fg:#e6ece7;--mute:#9aa89e;--line:#2e3a32;--accent:#5fbf86;--warn:#e0a24a;--bad:#e2705e;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141a16;--card:#1d2520;--fg:#e6ece7;--mute:#9aa89e;--line:#2e3a32;--accent:#5fbf86;--warn:#e0a24a;--bad:#e2705e;color-scheme:dark}
+html,body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:16px 96px}
+h1{font-family:var(--disp);font-size:1.7rem;margin:4px 0 2px}
+h2{font-family:var(--disp);font-size:1.2rem;margin:20px 0 8px}
+.sub{color:var(--mute);margin:0 0 12px}
+form.add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);min-width:0}
+input[type=text]{flex:1 1 160px}
+button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+button.ghost{background:transparent;color:var(--mute);padding:6px 8px;font-weight:400}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+ul{list-style:none;padding:0;margin:0;background:var(--card);border:1px solid var(--line);border-radius:12px}
+li{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+li .n{flex:1;min-width:0;overflow-wrap:anywhere}
+li.done .n{text-decoration:line-through;color:var(--mute)}
+.pill{font-size:.75rem;padding:3px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap;font-variant-numeric:tabular-nums}
+.ok{color:var(--accent)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.tag{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+.empty{color:var(--mute);padding:14px;text-align:center}
+.alert{background:var(--card);border:1px solid var(--warn);border-radius:12px;padding:12px;margin-bottom:12px}
+.day{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.day b{font-family:var(--disp)}
+.day.today b{color:var(--accent)}
+.daysHead{display:grid;grid-template-columns:70px 1fr 1fr;gap:8px}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav button{flex:1;background:none;color:var(--mute);border-radius:0;padding:12px 4px;font-size:.85rem}
+nav button[aria-current=true]{color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:.7rem;margin-left:4px}
+.idea{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
+.chip{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:7px 12px;font-weight:400;font-size:.9rem}
+.chip.on{border-color:var(--accent);color:var(--accent)}
+details.manage{margin-bottom:14px}details.manage summary{color:var(--mute);cursor:pointer;font-size:.9rem;padding:4px 0}
+.big{font-family:var(--disp);font-size:1.5rem;font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin-top:8px}.bar span{display:block;height:100%}
+</style>
+
+<div class="wrap">
+  <h1>Cucina di Casa</h1>
+  <p class="sub" id="today"></p>
+  <section id="v-frigo"></section>
+  <section id="v-spesa" hidden></section>
+  <section id="v-menu" hidden></section>
+  <section id="v-idee" hidden></section>
+</div>
+<nav>
+  <button data-v="frigo">Frigo<span id="bf"></span></button>
+  <button data-v="spesa">Spesa<span id="bs"></span></button>
+  <button data-v="menu">Settimana</button>
+  <button data-v="idee">Cosa cucino</button>
+</nav>
+
+<script>
+const KEY="cucina-v1";
+const iso=d=>d.toISOString().slice(0,10);
+const addDays=n=>{const d=new Date();d.setDate(d.getDate()+n);return iso(d)};
+const sample={
+ frigo:[{n:"Latte",z:"Frigo",s:addDays(2)},{n:"Uova (6)",z:"Frigo",s:addDays(9)},{n:"Mozzarella",z:"Frigo",s:addDays(1)},{n:"Zucchine",z:"Frigo",s:addDays(4)},{n:"Piselli",z:"Freezer",s:addDays(90)},{n:"Pasta",z:"Dispensa",s:""},{n:"Passata di pomodoro",z:"Dispensa",s:addDays(200)}],
+ spesa:[{n:"Pane",c:"Forno",d:false},{n:"Mele",c:"Frutta e verdura",d:false},{n:"Caffè",c:"Dispensa",d:true}],
+ menu:{}, ricette:[
+  {n:"Pasta zucchine e uova",i:["pasta","zucchine","uova"]},
+  {n:"Frittata di zucchine",i:["uova","zucchine"]},
+  {n:"Pasta al pomodoro",i:["pasta","passata"]},
+  {n:"Caprese",i:["mozzarella","pomodori"]},
+  {n:"Pasta e piselli",i:["pasta","piselli"]},
+  {n:"Pizza in padella",i:["farina","mozzarella","passata"]}],
+ abituali:[{n:"Latte",c:"Latticini"},{n:"Pane",c:"Forno"},{n:"Uova",c:"Latticini"},{n:"Caffè",c:"Dispensa"},{n:"Pasta",c:"Dispensa"},{n:"Insalata",c:"Frutta e verdura"},{n:"Carta igienica",c:"Casa"}],
+ scontrini:[{d:addDays(-3),e:46.8,m:"Esselunga"},{d:addDays(-10),e:32.5,m:"Mercato"}],
+ limite:400
+};
+sample.frigo.push({n:"Risotto ai funghi",z:"Avanzi",s:addDays(1)});
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S){S=structuredClone(sample);S.esempio=true}
+S.abituali=S.abituali||structuredClone(sample.abituali);S.scontrini=S.scontrini||[];if(S.limite===undefined)S.limite=0;
+const DUR=[["latte",5],["yogurt",10],["insalata",3],["rucola",3],["mozzarella",4],["ricotta",4],["pollo",2],["macinato",1],["carne",2],["pesce",1],["salmone",2],["prosciutto",4],["salame",10],["affettat",4],["formaggio",14],["parmigiano",30],["burro",30],["uova",21],["pane",3],["banan",5],["mel",14],["aranc",14],["fragol",3],["zucchin",5],["pomodor",5],["carot",14],["patat",30],["cipoll",30],["verdur",5],["frutta",5],["panna",7]];
+function guessDays(n,z){if(z==="Freezer")return 90;if(z==="Avanzi")return 3;n=n.toLowerCase();const m=DUR.find(([k])=>n.includes(k));return m?m[1]:null}
+function guess(){const f=document.getElementById("fs"),d=guessDays(v("fn"),v("fz"));if(f.value&&!f.dataset.auto)return;
+ if(d===null){if(f.dataset.auto){f.value="";delete f.dataset.auto}document.getElementById("fh").textContent="";return}
+ f.value=addDays(d);f.dataset.auto=1;document.getElementById("fh").textContent="Scadenza proposta: "+d+" giorni. Puoi cambiarla."}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){};render()};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const giorni=["Lun","Mar","Mer","Gio","Ven","Sab","Dom"];
+const daysLeft=s=>s?Math.round((new Date(s)-new Date(iso(new Date())))/864e5):null;
+function exp(s){const d=daysLeft(s);if(d===null)return"";
+ const c=d<0?"bad":d<=2?"warn":"ok";const t=d<0?"scaduto":d===0?"oggi":d===1?"domani":d+" gg";
+ return `<span class="pill ${c}">${t}</span>`}
+
+function vFrigo(){
+ const zone=["Avanzi","Frigo","Freezer","Dispensa"];
+ const av=S.frigo.filter(x=>x.z==="Avanzi");
+ const urg=S.frigo.filter(x=>{const d=daysLeft(x.s);return x.z!=="Avanzi"&&d!==null&&d<=2});
+ let h=S.esempio?`<div class="alert">Questi sono dati di esempio. <button class="ghost" onclick="reset()">Svuota e inizia</button></div>`:"";
+ if(av.length)h+=`<div class="alert"><b>Avanzi da finire:</b> ${av.map(x=>esc(x.n)+" ("+(daysLeft(x.s)<=0?"oggi!":"entro "+daysLeft(x.s)+" gg")+")").join(", ")}</div>`;
+ if(urg.length)h+=`<div class="alert"><b>Da usare presto:</b> ${urg.map(x=>esc(x.n)).join(", ")}</div>`;
+ h+=`<form class="add" onsubmit="addF(event)"><input type="text" id="fn" placeholder="Cosa hai messo via? (anche un avanzo)" required oninput="guess()">
+ <select id="fz" onchange="guess()">${["Frigo","Freezer","Dispensa","Avanzi"].map(z=>`<option>${z}</option>`).join("")}</select><input type="date" id="fs" aria-label="Scadenza" oninput="delete this.dataset.auto;document.getElementById('fh').textContent=''"><button>Aggiungi</button></form><p class="sub" id="fh" style="margin-top:-6px"></p>`;
+ for(const z of zone){const it=S.frigo.map((x,i)=>({...x,i})).filter(x=>x.z===z).sort((a,b)=>(a.s||"9")<(b.s||"9")?-1:1);
+  if(z==="Avanzi"&&!it.length)continue;
+  h+=`<h2>${z}</h2>`+(it.length?`<ul>${it.map(x=>`<li><span class="n">${esc(x.n)}</span>${exp(x.s)}
+  <button class="ghost" title="Finito: aggiungi alla spesa" onclick="finito(${x.i})">Finito</button>
+  <button class="ghost" title="Elimina" onclick="delF(${x.i})">✕</button></li>`).join("")}</ul>`:`<p class="empty">Vuoto</p>`)}
+ return h}
+function vSpesa(){
+ const cats=["Frutta e verdura","Carne e pesce","Latticini","Forno","Dispensa","Surgelati","Casa","Altro"];
+ let h=`<form class="add" onsubmit="addS(event)"><input type="text" id="sn" placeholder="Cosa manca?" required>
+ <select id="sc">${cats.map(c=>`<option>${c}</option>`).join("")}</select><button>Aggiungi</button></form>`;
+ const todo=S.spesa.map((x,i)=>({...x,i}));
+ for(const c of cats){const it=todo.filter(x=>x.c===c);if(!it.length)continue;
+  h+=`<h2>${c}</h2><ul>${it.map(x=>`<li class="${x.d?"done":""}"><input type="checkbox" id="s${x.i}" ${x.d?"checked":""} onchange="tog(${x.i})" aria-label="Preso">
+  <label class="n" for="s${x.i}">${esc(x.n)}</label><button class="ghost" onclick="delS(${x.i})">✕</button></li>`).join("")}</ul>`}
+ if(!S.spesa.length)h+=`<p class="empty">Lista vuota</p>`;
+ if(S.spesa.some(x=>x.d))h+=`<div class="row" style="margin-top:12px"><button onclick="toFrigo()">Metti i presi in frigo</button><button class="ghost" onclick="clearDone()">Togli i presi</button></div>`;
+ return vAbituali(cats)+h+vBudget()}
+function vAbituali(cats){
+ const inL=n=>S.spesa.some(s=>s.n.toLowerCase()===n.toLowerCase()&&!s.d);
+ return `<p class="tag">Abituali — tocca per aggiungere</p><div class="chips">${S.abituali.map((x,i)=>`<button class="chip ${inL(x.n)?"on":""}" onclick="addAb(${i})">${inL(x.n)?"✓ ":"+ "}${esc(x.n)}</button>`).join("")}</div>
+ <details class="manage"><summary>Modifica abituali</summary>
+ <ul>${S.abituali.map((x,i)=>`<li><span class="n">${esc(x.n)}</span><span class="tag">${esc(x.c)}</span><button class="ghost" onclick="S.abituali.splice(${i},1);save()">✕</button></li>`).join("")}</ul>
+ <form class="add" style="margin-top:8px" onsubmit="newAb(event)"><input type="text" id="an" placeholder="Nuovo abituale" required><select id="ac">${cats.map(c=>`<option>${c}</option>`).join("")}</select><button>Salva</button></form></details>`}
+function vBudget(){
+ const now=iso(new Date()).slice(0,7),eur=n=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
+ const mese=S.scontrini.map((x,i)=>({...x,i})).filter(x=>x.d.slice(0,7)===now).sort((a,b)=>a.d<b.d?1:-1);
+ const tot=mese.reduce((a,x)=>a+x.e,0);
+ const prev={};S.scontrini.forEach(x=>{const m=x.d.slice(0,7);if(m!==now)prev[m]=(prev[m]||0)+x.e});
+ const pct=S.limite?Math.min(100,tot/S.limite*100):0,c=pct>=100?"var(--bad)":pct>=85?"var(--warn)":"var(--accent)";
+ let h=`<h2>Budget spesa</h2><div class="idea"><div class="row" style="justify-content:space-between;align-items:baseline">
+ <span class="tag">${new Date().toLocaleDateString("it-IT",{month:"long"})}</span><b class="big">${eur(tot)}</b></div>`;
+ if(S.limite)h+=`<div class="bar"><span style="width:${pct}%;background:${c}"></span></div><p class="sub" style="margin:6px 0 0">${tot<=S.limite?"Restano "+eur(S.limite-tot):"Superato di "+eur(tot-S.limite)} su ${eur(S.limite)}</p>`;
+ h+=`<label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:10px">Tetto mensile € <input type="number" id="lim" min="0" step="10" value="${S.limite||""}" style="width:110px" onchange="S.limite=+this.value||0;save()"></label></div>`;
+ h+=`<form class="add" onsubmit="addSc(event)"><input type="number" id="se" min="0" step="0.01" placeholder="Totale scontrino €" required style="flex:1 1 140px"><input type="text" id="sm" placeholder="Negozio (facoltativo)"><button>Registra</button></form>`;
+ if(mese.length)h+=`<ul>${mese.map(x=>`<li><span class="n">${new Date(x.d).toLocaleDateString("it-IT",{day:"numeric",month:"short"})} · ${esc(x.m||"Spesa")}</span><span class="num">${eur(x.e)}</span><button class="ghost" onclick="S.scontrini.splice(${x.i},1);save()">✕</button></li>`).join("")}</ul>`;
+ const pm=Object.keys(prev).sort().reverse().slice(0,6);
+ if(pm.length)h+=`<p class="tag" style="margin-top:14px">Mesi precedenti</p><ul>${pm.map(m=>`<li><span class="n">${new Date(m+"-01").toLocaleDateString("it-IT",{month:"long",year:"numeric"})}</span><span class="num">${eur(prev[m])}</span></li>`).join("")}</ul>`;
+ return h}
+function vMenu(){
+ const t=(new Date().getDay()+6)%7;
+ let h=`<p class="sub">Scrivi pranzo e cena. Si salva da solo.</p><div class="daysHead"><span></span><span class="tag">Pranzo</span><span class="tag">Cena</span></div>`;
+ giorni.forEach((g,i)=>{const m=S.menu[g]||{};
+  h+=`<div class="day ${i===t?"today":""}"><b>${g}</b><input id="p${i}" value="${esc(m.p||"")}" onchange="setM('${g}','p',this.value)" placeholder="—">
+  <input id="c${i}" value="${esc(m.c||"")}" onchange="setM('${g}','c',this.value)" placeholder="—"></div>`});
+ h+=`<div class="row" style="margin-top:14px"><button onclick="menuToSpesa()">Ingredienti mancanti → spesa</button><button class="ghost" onclick="S.menu={};save()">Svuota settimana</button></div>`;
+ return h}
+function have(ing){return S.frigo.some(x=>x.n.toLowerCase().includes(ing))}
+function vIdee(){
+ const r=S.ricette.map(x=>{const miss=x.i.filter(i=>!have(i));
+  const urgent=x.i.some(i=>S.frigo.some(f=>f.n.toLowerCase().includes(i)&&daysLeft(f.s)!==null&&daysLeft(f.s)<=2));
+  return{...x,miss,urgent}}).sort((a,b)=>a.miss.length-b.miss.length||b.urgent-a.urgent);
+ let h=`<p class="sub">Piatti ordinati per quello che hai già in casa.</p>`;
+ h+=r.map(x=>`<div class="idea"><div class="row" style="justify-content:space-between;align-items:center"><b>${esc(x.n)}</b>
+ ${x.miss.length?`<span class="pill warn">mancano ${x.miss.length}</span>`:`<span class="pill ok">hai tutto</span>`}</div>
+ <p class="sub" style="margin:6px 0">${x.i.map(i=>have(i)?esc(i):`<s>${esc(i)}</s>`).join(" · ")}${x.urgent?" — usa ciò che scade":""}</p>
+ <div class="row"><select id="d-${esc(x.n)}">${giorni.map(g=>`<option>${g}</option>`).join("")}</select>
+ <button onclick="plan('${esc(x.n).replace(/'/g,"")}',this.previousElementSibling.value)">Metti a cena</button></div></div>`).join("");
+ h+=`<h2>Aggiungi un tuo piatto</h2><form class="add" onsubmit="addR(event)"><input type="text" id="rn" placeholder="Nome piatto" required>
+ <input type="text" id="ri" placeholder="Ingredienti, separati da virgola" required><button>Salva</button></form>`;
+ return h}
+
+let view="frigo";
+function render(){
+ document.getElementById("today").textContent=new Date().toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"});
+ for(const v of["frigo","spesa","menu","idee"])document.getElementById("v-"+v).hidden=v!==view;
+ document.getElementById("v-"+view).innerHTML={frigo:vFrigo,spesa:vSpesa,menu:vMenu,idee:vIdee}[view]();
+ document.querySelectorAll("nav button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===view));
+ const u=S.frigo.filter(x=>{const d=daysLeft(x.s);return d!==null&&d<=2}).length;
+ document.getElementById("bf").innerHTML=u?`<span class="badge">${u}</span>`:"";
+ const s=S.spesa.filter(x=>!x.d).length;document.getElementById("bs").innerHTML=s?`<span class="badge" style="background:var(--accent)">${s}</span>`:"";
+}
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{view=b.dataset.v;render();scrollTo(0,0)});
+const v=id=>document.getElementById(id).value.trim();
+function touch(){delete S.esempio}
+function addF(e){e.preventDefault();touch();S.frigo.push({n:v("fn"),z:v("fz"),s:v("fs")});save()}
+function delF(i){touch();S.frigo.splice(i,1);save()}
+function addAb(i){touch();const x=S.abituali[i];if(!S.spesa.some(s=>s.n.toLowerCase()===x.n.toLowerCase()&&!s.d))S.spesa.push({n:x.n,c:x.c,d:false});save()}
+function newAb(e){e.preventDefault();S.abituali.push({n:v("an"),c:v("ac")});save()}
+function addSc(e){e.preventDefault();touch();S.scontrini.push({d:iso(new Date()),e:Math.round(+v("se")*100)/100,m:v("sm")});save()}
+function finito(i){touch();const x=S.frigo.splice(i,1)[0];if(x.z==="Avanzi"){save();return}if(!S.spesa.some(s=>s.n===x.n&&!s.d))S.spesa.push({n:x.n,c:x.z==="Freezer"?"Surgelati":x.z==="Dispensa"?"Dispensa":"Altro",d:false});save()}
+function addS(e){e.preventDefault();touch();S.spesa.push({n:v("sn"),c:v("sc"),d:false});save()}
+function tog(i){S.spesa[i].d=!S.spesa[i].d;save()}
+function delS(i){S.spesa.splice(i,1);save()}
+function clearDone(){S.spesa=S.spesa.filter(x=>!x.d);save()}
+function toFrigo(){touch();S.spesa.filter(x=>x.d).forEach(x=>S.frigo.push({n:x.n,z:x.c==="Surgelati"?"Freezer":x.c==="Dispensa"?"Dispensa":"Frigo"}));
+ S.frigo.forEach(f=>{if(f.s===undefined){const g=guessDays(f.n,f.z);f.s=g===null?"":addDays(g)}});clearDone()}
+function setM(g,k,val){touch();(S.menu[g]=S.menu[g]||{})[k]=val;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function plan(n,g){touch();(S.menu[g]=S.menu[g]||{}).c=n;view="menu";save()}
+function addR(e){e.preventDefault();S.ricette.push({n:v("rn"),i:v("ri").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean)});save()}
+function menuToSpesa(){let k=0;const piatti=Object.values(S.menu).flatMap(m=>[m.p,m.c]).filter(Boolean);
+ piatti.forEach(p=>{const r=S.ricette.find(x=>x.n.toLowerCase()===p.toLowerCase());if(!r)return;
+  r.i.filter(i=>!have(i)&&!S.spesa.some(s=>s.n.toLowerCase()===i&&!s.d)).forEach(i=>{S.spesa.push({n:i,c:"Altro",d:false});k++})});
+ view="spesa";save()}
+function reset(){S={frigo:[],spesa:[],menu:{},ricette:sample.ricette,abituali:S.abituali,scontrini:[],limite:0};save()}
+render();
+</script>

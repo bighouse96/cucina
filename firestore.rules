@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Regole di sicurezza per Cucina di Casa.
+// Il codice famiglia (16 caratteri casuali) è il segreto condiviso:
+// nessuno può elencare le famiglie, quindi senza codice non si arriva ai dati.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticato() {
+      return request.auth != null;
+    }
+    // XXXX-XXXX-XXXX-XXXX con alfabeto senza 0 O 1 I L
+    function codiceValido(c) {
+      return c.matches('^[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$');
+    }
+    function sezioneValida(s) {
+      return s in ['frigo', 'spesa', 'menu', 'ricette', 'abituali', 'scontrini', 'impostazioni'];
+    }
+    // Limiti di dimensione ragionevoli (Firestore ha comunque un tetto di 1 MB per documento)
+    function datiValidi(d) {
+      return d.keys().hasOnly(['v', 't', 'by'])
+        && d.by == request.auth.uid
+        && d.t == request.time
+        && (
+          (d.v is list && d.v.size() <= 3000)
+          || (d.v is map && d.v.keys().size() <= 100)
+        );
+    }
+
+    match /famiglie/{famiglia} {
+      // Leggere una famiglia solo conoscendone il codice esatto; nessun elenco.
+      allow get: if autenticato() && codiceValido(famiglia);
+      allow list: if false;
+      allow create: if autenticato() && codiceValido(famiglia)
+        && request.resource.data.keys().hasOnly(['creata', 'v'])
+        && request.resource.data.creata == request.time;
+      allow update, delete: if false;
+
+      match /sezioni/{sezione} {
+        // list consentito solo dentro una famiglia nota (il percorso contiene già il codice)
+        allow get, list: if autenticato()
+          && exists(/databases/$(database)/documents/famiglie/$(famiglia));
+        // existsAfter: permette di creare famiglia e sezioni nello stesso batch
+        allow create, update: if autenticato()
+          && sezioneValida(sezione)
+          && existsAfter(/databases/$(database)/documents/famiglie/$(famiglia))
+          && datiValidi(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    // Tutto il resto è chiuso
+    match /{percorso=**} {
+      allow read, write: if false;
+    }
+  }
+}
