@@ -17,3 +17,7 @@ firestore-debug.log
 
 # Impostazioni locali di Claude Code
 .claude/
+
+# Worker Cloudflare (segreti locali e cache)
+.dev.vars
+.wrangler/

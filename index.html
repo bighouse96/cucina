@@ -29,7 +29,7 @@ header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px
 h1{font-family:var(--disp);font-size:1.7rem;margin:4px 0 2px}
 h2{font-family:var(--disp);font-size:1.2rem;margin:20px 0 8px}
 .sub{color:var(--mute);margin:0 0 12px}
-form.add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+form.add,div.add{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 input,select{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);min-width:0}
 input[type=text]{flex:1 1 10em}
 button{font:inherit;border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
@@ -127,6 +127,7 @@ button:disabled{opacity:.4;cursor:default}
 .fld{display:flex;flex-direction:column;gap:4px;flex:1 1 9em;min-width:0}
 .fld>span:first-child{font-size:.85rem;color:var(--mute)}
 .fld input,.fld select{width:100%;box-sizing:border-box}
+.fld>input[type=text]{flex:0 0 auto}
 .fld input[type=date]{min-height:2.9em;-webkit-appearance:none;appearance:none;text-align:left}
 .qty{display:flex;gap:6px}.qty input{flex:1 1 3em;width:0}.qty select{flex:0 0 auto;width:auto}
 form.add>button{align-self:flex-end}
@@ -137,6 +138,15 @@ form.add>button{align-self:flex-end}
 #ptr.gira .ruota{animation:gira .8s linear infinite}
 @keyframes gira{to{transform:rotate(360deg)}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* Lettura con Gemini: attesa, anteprima foto, revisione scontrino */
+.attesa{text-align:center;padding-top:28vh}
+.attesa .ruota{display:inline-block;width:40px;height:40px;box-sizing:border-box;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:gira .8s linear infinite}
+.anteprima{max-height:72px;max-width:96px;border-radius:8px;border:1px solid var(--line)}
+.scr{border-top:1px solid var(--line);padding-top:10px}
+.scr.off .erow:last-child{display:none}.scr.off input[type=text]{text-decoration:line-through;color:var(--mute)}
+.scr input[type=checkbox],.chk input{width:24px;height:24px;flex:0 0 auto;margin:0}
+.scr .erow input[type=date]{flex:1 1 9em}
+.chk{display:flex;gap:10px;align-items:center;margin:12px 0}
 </style>
 </head>
 <body>
@@ -164,6 +174,7 @@ form.add>button{align-self:flex-end}
 <div id="sheet" hidden></div>
 <div id="tbar" hidden></div>
 <div id="toast" role="status" hidden></div>
+<input type="file" id="foto" accept="image/*" hidden onchange="fotoScelta(this)">
 <div id="ptr"><span class="ruota"></span><span class="sr" role="status" id="ptrT"></span></div>
 
 <div id="gate" hidden>
@@ -266,6 +277,7 @@ function vFrigo(){
  let h=S.esempio?`<div class="alert">Questi sono dati di esempio. <button class="ghost" onclick="reset()">Svuota e inizia</button></div>`:"";
  if(av.length)h+=`<div class="alert"><b>Avanzi da finire:</b> ${av.map(x=>esc(x.n)+" ("+(daysLeft(x.s)<=0?"oggi!":"entro "+daysLeft(x.s)+" gg")+")").join(", ")}</div>`;
  if(urg.length)h+=`<div class="alert"><b>Da usare presto:</b> ${urg.map(x=>esc(x.n)).join(", ")}</div>`;
+ h+=`<div class="row" style="margin-bottom:10px"><button class="chip" onclick="leggiScontrino()">📷 Leggi scontrino</button></div>`;
  h+=`<form class="add" onsubmit="addF(event)"><input type="text" id="fn" placeholder="Cosa hai messo via? (anche un avanzo)" required oninput="guess()" aria-label="Prodotto" style="flex-basis:100%">
  ${qtyFld("fq","fu")}
  <label class="fld"><span>Dove</span><select id="fz" onchange="guess()">${["Frigo","Freezer","Dispensa","Avanzi"].map(z=>`<option>${z}</option>`).join("")}</select></label>
@@ -306,7 +318,8 @@ function vBudget(){
  <span class="tag">${new Date().toLocaleDateString("it-IT",{month:"long"})}</span><b class="big">${eur(tot)}</b></div>`;
  if(S.limite)h+=`<div class="bar"><span style="width:${pct}%;background:${c}"></span></div><p class="sub" style="margin:6px 0 0">${tot<=S.limite?"Restano "+eur(S.limite-tot):"Superato di "+eur(tot-S.limite)} su ${eur(S.limite)}</p>`;
  h+=`<label class="sub" style="display:flex;gap:8px;align-items:center;margin-top:10px">Tetto mensile € <input type="number" id="lim" min="0" step="10" value="${S.limite||""}" style="width:110px" onchange="S.limite=+this.value||0;save()"></label></div>`;
- h+=`<form class="add" onsubmit="addSc(event)"><input type="number" id="se" min="0" step="0.01" placeholder="Totale scontrino €" required style="flex:1 1 140px"><input type="text" id="sm" placeholder="Negozio (facoltativo)"><button>Registra</button></form>`;
+ h+=`<form class="add" onsubmit="addSc(event)"><input type="number" id="se" min="0" step="0.01" placeholder="Totale scontrino €" required style="flex:1 1 140px"><input type="text" id="sm" placeholder="Negozio (facoltativo)"><button>Registra</button></form>
+ <div class="row" style="margin:-4px 0 10px"><button class="chip" onclick="leggiScontrino()">📷 Leggi scontrino (prodotti e totale)</button></div>`;
  if(mese.length)h+=`<ul>${mese.map(x=>`<li><span class="n">${new Date(x.d).toLocaleDateString("it-IT",{day:"numeric",month:"short"})} · ${esc(x.m||"Spesa")}</span><span class="num">${eur(x.e)}</span><button class="ghost" onclick="S.scontrini.splice(${x.i},1);save()">✕</button></li>`).join("")}</ul>`;
  const pm=Object.keys(prev).sort().reverse().slice(0,6);
  if(pm.length)h+=`<p class="tag" style="margin-top:14px">Mesi precedenti</p><ul>${pm.map(m=>`<li><span class="n">${new Date(m+"-01").toLocaleDateString("it-IT",{month:"long",year:"numeric"})}</span><span class="num">${eur(prev[m])}</span></li>`).join("")}</ul>`;
@@ -338,7 +351,7 @@ function vIdee(){
  <p class="sub" style="margin:6px 0">${x.dc?"Mancano ingredienti e procedimento: apri la ricetta e tocca «Modifica».":x.ns.map(i=>have(i)?esc(i):`<s>${esc(i)}</s>`).join(" · ")}${x.urgent?" — usa ciò che scade":""}</p>
  <div class="row"><button class="chip" onclick="apriR(${x.k})">Apri ricetta</button><select id="d-${esc(x.n)}" aria-label="Giorno">${giorni.map(g=>`<option>${g}</option>`).join("")}</select>
  <button onclick="plan('${esc(x.n).replace(/'/g,"")}',this.previousElementSibling.value)">Metti a cena</button></div></div>`).join("");
- h+=`<div class="row" style="margin-top:16px"><button onclick="editR(null)">+ Nuova ricetta</button></div>`;
+ h+=`<div class="row" style="margin-top:16px"><button onclick="editR(null)">+ Nuova ricetta</button><button class="chip" onclick="nuovaDaAI()">✨ Da testo/foto</button></div>`;
  return h}
 function vImpo(){
  let h=`<h2>Famiglia</h2>`;
@@ -452,7 +465,7 @@ function openSheet(s){sheet=s;renderSheet();byId("sheet").scrollTop=0}
 function closeSheet(){sheet=null;D=null;renderSheet()}
 function renderSheet(){const el=byId("sheet");
  if(!sheet){el.hidden=true;el.innerHTML="";document.body.style.overflow=""}
- else{el.hidden=false;document.body.style.overflow="hidden";el.innerHTML=`<div class="box">${({r:vRicetta,e:vEditor,c:vCook,k:vCucinato,m:vPick}[sheet.t])()}</div>`}
+ else{el.hidden=false;document.body.style.overflow="hidden";el.innerHTML=`<div class="box">${({r:vRicetta,e:vEditor,c:vCook,k:vCucinato,m:vPick,a:vImporta,w:vAttesa,s:vScontrino}[sheet.t])()}</div>`}
  const vuole=!!sheet&&sheet.t==="c";if(vuole!==wlOn)wake(vuole);
  tPos()}
 function sparita(){return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button></div><p class="empty">Questa ricetta non c'è più (forse è stata eliminata da un altro telefono).</p>`}
@@ -510,6 +523,7 @@ function editR(key){const r=key!=null?findR(key):null;
 function vEditor(){
  const opz=u=>(UNITA.includes(u)?UNITA:[...UNITA,u]).map(o=>`<option value="${esc(o)}" ${o===u?"selected":""}>${o||"—"}</option>`).join("");
  return`<div class="top"><button class="ghost" onclick="annullaEd()">Annulla</button><b>${sheet.key?"Modifica ricetta":"Nuova ricetta"}</b><button class="ghost" onclick="salvaR()">Salva</button></div>
+ ${sheet.ai?`<div class="alert">Ho letto la ricetta: controlla nomi, dosi e passi, correggi se serve e poi tocca <b>Salva</b>.</div>`:""}
  <h2>Nome</h2><input type="text" value="${esc(D.n)}" oninput="D.n=this.value" placeholder="es. Pasta al forno" style="width:100%;box-sizing:border-box">
  <label class="stepper"><span>Porzioni</span><input type="number" min="1" max="50" inputmode="numeric" value="${esc(D.p)}" oninput="D.p=this.value" style="width:80px"></label>
  <h2>Ingredienti</h2><p class="sub">Quantità per le porzioni indicate sopra. Per sale, olio… va bene «q.b.».</p>
@@ -589,6 +603,101 @@ function confermaK(){const r=findR(sheet.key);if(!r)return closeSheet();
  if(sheet.av>0){S.frigo.push({n:r.n,z:"Avanzi",s:addDays(3),q:sheet.av,u:"porz"});k++}
  touch();closeSheet();save();
  toast(k?`Fatto: ${k} ${k===1?"modifica":"modifiche"} a frigo e dispensa.`:"Segnato come cucinato.",k?()=>{S.frigo=JSON.parse(prima.frigo);S.spesa=JSON.parse(prima.spesa);save();toast("Annullato: frigo e spesa come prima.")}:null)}
+
+/* ---------- Lettura con Gemini: scontrino e ricetta (servizio in worker/, vedi GUIDA-GEMINI.md) ---------- */
+const AI_URL="https://cucina-gemini.djbighouse96.workers.dev";
+let aiCtrl=null,fotoPer=null;
+const eurF=n=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
+const virgola=q=>q>0?String(q).replace(".",","):"";
+// Fotocamera o galleria (su iPhone lo chiede il sistema); fn riceve la foto già ridotta
+function scegliFoto(fn){fotoPer=fn;const f=byId("foto");f.value="";f.click()}
+async function fotoScelta(inp){const file=inp.files&&inp.files[0],fn=fotoPer;fotoPer=null;if(!file||!fn)return;
+ let d;try{d=await riduci(file)}catch{alert("Non riesco ad aprire questa foto. Prova con un'altra o scattane una nuova.");return}fn(d)}
+// Lato lungo max 1600 px, JPEG sotto ~1,1 MB: si invia in fretta anche col telefono
+function riduci(file,lato=1600){return new Promise((ok,ko)=>{const img=new Image(),u=URL.createObjectURL(file);
+ img.onload=()=>{URL.revokeObjectURL(u);const k=Math.min(1,lato/Math.max(img.naturalWidth,img.naturalHeight));
+  const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);let q=.82,d=c.toDataURL("image/jpeg",q);
+  while(d.length>1500000&&q>.4){q-=.12;d=c.toDataURL("image/jpeg",q)}ok(d)};
+ img.onerror=()=>{URL.revokeObjectURL(u);ko()};img.src=u})}
+// Restituisce i dati letti; se qualcosa va storto lancia un errore con un messaggio da mostrare ("" se annullato)
+async function chiediAI(percorso,corpo){
+ if(!navigator.onLine)throw new Error("Sei offline: per leggere foto e testi serve internet. Riprova quando torna la rete.");
+ const c=aiCtrl=new AbortController(),t=setTimeout(()=>c.abort(),75000);
+ try{const r=await fetch(AI_URL+percorso,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corpo),signal:c.signal});
+  let j=null;try{j=await r.json()}catch{}
+  if(!j||!j.ok)throw new Error((j&&j.errore)||`Il servizio ha risposto con un errore (${r.status}). Riprova tra poco.`);
+  return j.dati}
+ catch(e){if(e.name==="AbortError")throw new Error(c.annullato?"":"Ci sta mettendo troppo. Riprova tra poco, magari con una foto più nitida.");
+  if(e instanceof TypeError)throw new Error("Non riesco a contattare il servizio. Controlla la connessione e riprova.");
+  throw e}
+ finally{clearTimeout(t);if(aiCtrl===c)aiCtrl=null}}
+function vAttesa(){return`<div class="attesa" role="status"><span class="ruota"></span><h2>${esc(sheet.msg)}</h2>
+ <p class="sub">Di solito bastano 10-30 secondi.</p><button class="ghost" onclick="annullaAI()">Annulla</button></div>`}
+function annullaAI(){const t=sheet.torna;if(aiCtrl){aiCtrl.annullato=true;aiCtrl.abort()}if(t)openSheet(t);else closeSheet()}
+
+/* Ricetta da testo o foto → bozza nell'editor, si salva solo con «Salva» */
+function nuovaDaAI(){openSheet({t:"a",testo:"",foto:null,err:""})}
+function vImporta(){const s=sheet;
+ return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button><b>Ricetta da testo o foto</b><span></span></div>
+ <p class="sub">Incolla o scrivi la ricetta, oppure fotografa la pagina di un libro o un foglio. Prima di salvare potrai controllare e correggere tutto.</p>
+ ${s.err?`<div class="alert" style="border-color:var(--bad)" role="alert">${esc(s.err)}</div>`:""}
+ <textarea rows="8" oninput="sheet.testo=this.value" aria-label="Testo della ricetta" placeholder="es. Torta di mele per 6: 300 g di farina, 3 uova, 2 mele… Mescola le uova con lo zucchero…">${esc(s.testo)}</textarea>
+ <div class="row" style="margin-top:10px;align-items:center"><button class="chip" onclick="scegliFoto(d=>{sheet.foto=d;sheet.err='';renderSheet()})">📷 ${s.foto?"Cambia foto":"Aggiungi una foto"}</button>
+ ${s.foto?`<img src="${s.foto}" alt="Foto scelta" class="anteprima"><button class="ghost" onclick="sheet.foto=null;renderSheet()" aria-label="Togli la foto">✕</button>`:""}</div>
+ <div class="row" style="margin-top:16px"><button onclick="leggiRicetta()" style="flex:1">Leggi la ricetta</button></div>`}
+async function leggiRicetta(){const s=sheet,testo=s.testo.trim();s.err="";
+ if(!testo&&!s.foto){s.err="Scrivi il testo della ricetta o aggiungi una foto.";renderSheet();return}
+ openSheet({t:"w",msg:"Sto leggendo la ricetta…",torna:s});
+ try{const d=await chiediAI("/ricetta",s.foto?{testo,immagine:s.foto}:{testo});
+  if(!sheet||sheet.t!=="w")return;
+  if(!d.ingredienti.length&&!d.passi.length)throw new Error("Non ho trovato una ricetta. Prova con una foto più nitida o incolla il testo.");
+  D={n:d.nome,p:d.porzioni,ing:d.ingredienti.map(x=>({n:x.n,q:virgola(x.q),u:x.u})),passi:d.passi};
+  if(!D.ing.length)D.ing.push({n:"",q:"",u:"g"});if(!D.passi.length)D.passi.push("");
+  D0="";openSheet({t:"e",key:null,ai:true})}
+ catch(e){if(!e.message||!sheet||sheet.t!=="w")return;s.err=e.message;openSheet(s)}}
+
+/* Scontrino da foto → revisione → frigo/freezer/dispensa e budget */
+function leggiScontrino(){scegliFoto(async foto=>{
+ openSheet({t:"w",msg:"Sto leggendo lo scontrino…"});
+ try{const d=await chiediAI("/scontrino",{immagine:foto});
+  if(!sheet||sheet.t!=="w")return;
+  if(!d.prodotti.length&&!d.totale)throw new Error("Non ho trovato prodotti in questa foto. Inquadra tutto lo scontrino, con buona luce, e riprova.");
+  const oggi=iso(new Date()),data=d.data&&d.data<=oggi&&d.data>=addDays(-60)?d.data:oggi,dopo=-daysLeft(data);
+  openSheet({t:"s",negozio:d.negozio||"",data,totale:virgola(d.totale),budget:true,
+   righe:d.prodotti.map(p=>{const g=p.giorni||guessDays(p.nome,p.reparto);
+    return{ok:true,n:p.nome,q:virgola(p.q),u:p.u,z:p.reparto,s:g?addDays(g-dopo):"",prezzo:p.prezzo}})})}
+ catch(e){if(!e.message||!sheet||sheet.t!=="w")return;closeSheet();alert(e.message)}})}
+function vScontrino(){const s=sheet,n=s.righe.filter(x=>x.ok).length;
+ const sel=(k,campo,ops,lab)=>`<select onchange="sheet.righe[${k}].${campo}=this.value" aria-label="${lab}">${ops.map(o=>`<option ${o===s.righe[k][campo]?"selected":""}>${o}</option>`).join("")}</select>`;
+ return`<div class="top"><button class="ghost" onclick="annullaSc()">Annulla</button><b>Scontrino letto</b><span></span></div>
+ <p class="sub">Controlla e correggi. Togli la spunta a ciò che non vuoi segnare in casa. Le scadenze sono proposte: cambiale se serve.</p>
+ <div class="add"><label class="fld"><span>Negozio</span><input type="text" value="${esc(s.negozio)}" oninput="sheet.negozio=this.value"></label>
+ <label class="fld"><span>Data</span><input type="date" value="${esc(s.data)}" onchange="sheet.data=this.value"></label>
+ <label class="fld"><span>Totale €</span><input type="text" inputmode="decimal" value="${esc(s.totale)}" oninput="sheet.totale=this.value" placeholder="es. 23,40"></label></div>
+ <label class="chk"><input type="checkbox" ${s.budget?"checked":""} onchange="sheet.budget=this.checked;renderSheet()"> Registra il totale nel budget</label>
+ <h2>Prodotti (${s.righe.length})</h2>${s.righe.length?"":`<p class="empty">Nessun prodotto alimentare trovato.</p>`}
+ ${s.righe.map((x,k)=>`<div class="scr ${x.ok?"":"off"}">
+  <div class="erow"><input type="checkbox" ${x.ok?"checked":""} onchange="sheet.righe[${k}].ok=this.checked;renderSheet()" aria-label="Segna in casa: ${esc(x.n)}">
+   <input type="text" value="${esc(x.n)}" oninput="sheet.righe[${k}].n=this.value" aria-label="Prodotto">${x.prezzo>0?`<span class="num">${eurF(x.prezzo)}</span>`:""}</div>
+  <div class="erow"><input type="text" class="q" inputmode="decimal" value="${esc(x.q)}" oninput="sheet.righe[${k}].q=this.value" placeholder="q.tà" aria-label="Quantità">
+   ${sel(k,"u",QU,"Unità")}${sel(k,"z",["Frigo","Freezer","Dispensa"],"Dove")}
+   <input type="date" value="${esc(x.s)}" onchange="sheet.righe[${k}].s=this.value" aria-label="Scadenza"></div></div>`).join("")}
+ <div class="row" style="margin-top:20px"><button onclick="confermaSc()" style="flex:1">${n?`Aggiungi ${n===1?"1 prodotto":n+" prodotti"} in casa`:"Non aggiungere prodotti"}${s.budget?" e registra la spesa":""}</button></div>`}
+function annullaSc(){if(confirm("Uscire senza aggiungere niente?"))closeSheet()}
+function togliStesso(arr,o){let i=arr.indexOf(o);if(i<0)i=arr.findIndex(x=>JSON.stringify(x)===JSON.stringify(o));if(i>=0)arr.splice(i,1)}
+function confermaSc(){const s=sheet,nuovi=[];let sc=null;
+ for(const x of s.righe){const n=String(x.n).trim();if(!x.ok||!n)continue;
+  const it={n,z:x.z,s:x.s||""},t=String(x.q).trim();
+  if(t){const q=+t.replace(",",".");if(!(q>0)){alert(`«${n}»: `+Q_ERR);return}it.q=q;it.u=x.u}
+  nuovi.push(it)}
+ if(s.budget){const e=Math.round(+String(s.totale).trim().replace(",",".")*100)/100;
+  if(!(e>0)){alert("Scrivi il totale dello scontrino (es. 23,40) oppure togli la spunta «Registra il totale nel budget».");return}
+  sc={d:s.data||iso(new Date()),e,m:String(s.negozio).trim()}}
+ if(!nuovi.length&&!sc){alert("Non hai scelto niente da aggiungere.");return}
+ touch();S.frigo.push(...nuovi);if(sc)S.scontrini.push(sc);closeSheet();save();
+ toast(`${nuovi.length===1?"1 prodotto":nuovi.length+" prodotti"} in casa${sc?" e "+eurF(sc.e)+" nel budget":""}.`,
+  ()=>{nuovi.forEach(o=>togliStesso(S.frigo,o));if(sc)togliStesso(S.scontrini,sc);save()})}
 
 /* Avviso in alto con «Annulla» */
 let toastT=null,toastFn=null;
