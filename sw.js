@@ -1,7 +1,7 @@
 // Service worker di Cucina di Casa.
 // Per pubblicare una nuova versione: aumenta il numero qui sotto (v1 -> v2 ...).
 // I telefoni scaricano la nuova versione e l'app si ricarica da sola.
-const VERSIONE = "cucina-v8";
+const VERSIONE = "cucina-v9";
 const RUNTIME = "cucina-runtime";
 
 const SHELL = [
@@ -20,7 +20,11 @@ const SHELL = [
 const ESTERNI = ["www.gstatic.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(VERSIONE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: "reload" scavalca la cache HTTP (GitHub Pages: max-age=600), altrimenti
+  // la nuova versione potrebbe salvare i file vecchi.
+  e.waitUntil(caches.open(VERSIONE)
+    .then(c => c.addAll(SHELL.map(u => new Request(u, { cache: "reload" }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", e => {
