@@ -1,6 +1,7 @@
 # Stato dei lavori
 
 ## Completato (sessione principale)
+- Fix aggiornamenti iPhone: `sw.js` scarica la shell con `cache: "reload"` (commit 3b005f9, v9). Verificato online: cache v9 = index.html live.
 - Fasi 1-4: PWA, sincronizzazione Firestore con codice famiglia, guide, pubblicazione su GitHub Pages.
 - Ricette: dosi, passi, ingredienti di base, Cucinato!, modalità cucina (commit 6d39ab0).
 - Migliorie: testo grande, trascina-per-aggiornare, quantità con unità, Settimana con ricette (commit 9493b75). Da provare su iPhone reale.
