@@ -1,7 +1,7 @@
 // Service worker di Cucina di Casa.
 // Per pubblicare una nuova versione: aumenta il numero qui sotto (v1 -> v2 ...).
 // I telefoni scaricano la nuova versione e l'app si ricarica da sola.
-const VERSIONE = "cucina-v2";
+const VERSIONE = "cucina-v3";
 const RUNTIME = "cucina-runtime";
 
 const SHELL = [
