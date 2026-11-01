@@ -10,3 +10,9 @@
 - Verificato: online ricetta da testo con Gemini vero (~27 s); scontrino da foto finta col Worker (11–33 s); revisione, Annulla, errori e offline con risposte simulate.
 - Da fare: provare su iPhone con scontrino e foto vera (fotocamera/galleria).
 - Problemi: `gemini-3.8-flash` spesso sovraccarico, risponde la riserva flash-lite. Aggiornare il Worker: `npx wrangler deploy` in `worker/`.
+
+## grafica
+- Fatto: palette «pesca e menta» scelta dall'utente (tra 4 proposte). Sfondo crema, pulsanti pesca con testo scuro (nuove variabili `--btn`/`--btnfg`), dettagli verde menta (`--accent`), anche in modalità scura. Rosso/arancio di stato ritoccati. Contrasto AA verificato (minimo 4.7:1). `manifest.json` e meta `theme-color` aggiornati, icone ricolorate (pentola marrone su pesca). Cache `cucina-v5`.
+- Verificato: browser integrato a 375px, chiaro e scuro (Frigo, Cosa cucino, ricetta), nessun errore in console.
+- Da fare: approvazione utente, poi commit/push della principale (file: `index.html`, `sw.js`, `manifest.json`, `icons/*.png`). Su iPhone l'icona sulla Home si aggiorna solo reinstallandola.
+- Problemi: nessuno.
