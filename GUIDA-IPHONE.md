@@ -1,4 +1,4 @@
-# Come mettere l'app sul tuo iPhone
+﻿# Come mettere l'app sul tuo iPhone
 
 Basta farlo una volta. Ci vuole 1 minuto.
 
@@ -8,7 +8,7 @@ Basta farlo una volta. Ci vuole 1 minuto.
 
 1. Apri **Safari** (la bussola blu).
    Non usare Chrome. Non funziona.
-2. Tocca questo link: **[LINK DELL'APP]**
+2. Tocca questo link: **https://bighouse96.github.io/cucina/**
 3. Aspetta che si apra la pagina.
 4. Tocca il tasto **Condividi**.
    È un quadrato con una freccia verso l'alto.

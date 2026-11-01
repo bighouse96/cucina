@@ -1,4 +1,4 @@
-# Guida Firebase (una volta sola)
+﻿# Guida Firebase (una volta sola)
 
 Serve per far sincronizzare l'app tra tutti i familiari. Costa **0 euro** (piano gratuito "Spark"). Ci vogliono circa 15 minuti.
 
@@ -56,7 +56,7 @@ Ti serve un account Google.
 1. In **Authentication** clicca la scheda **Impostazioni**.
 2. Clicca **Domini autorizzati**.
 3. Clicca **Aggiungi dominio**.
-4. Scrivi `NOMEUTENTE.github.io` (al posto di NOMEUTENTE metti il tuo nome utente GitHub, tutto minuscolo, **senza** `https://` e senza `/nome-repository`).
+4. Scrivi `bighouse96.github.io` (**senza** `https://` e senza `/nome-repository`).
 5. Clicca **Aggiungi**.
 
 ## 7. Prova
@@ -78,7 +78,7 @@ Ti serve un account Google.
 - L'accesso Anonimo non è attivo. Rifai il passo 5.
 
 **Errore "auth/unauthorized-domain"**
-- Manca il dominio. Rifai il passo 6. Scrivi proprio `NOMEUTENTE.github.io`, senza `https://`.
+- Manca il dominio. Rifai il passo 6. Scrivi proprio `bighouse96.github.io`, senza `https://`.
 
 **L'app dice che Firebase non è configurato / pagina bianca**
 - In `firebase-config.js` ci sono ancora i segnaposto, oppure hai copiato male (virgolette o virgole mancanti). Ricopia i valori.
