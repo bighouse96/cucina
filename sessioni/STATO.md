@@ -16,3 +16,9 @@
 - Verificato: browser integrato a 375px, chiaro e scuro (Frigo, Cosa cucino, ricetta), nessun errore in console.
 - Da fare: approvazione utente, poi commit/push della principale (file: `index.html`, `sw.js`, `manifest.json`, `icons/*.png`). Su iPhone l'icona sulla Home si aggiorna solo reinstallandola.
 - Problemi: nessuno.
+
+## riordino
+- Fatto: Frigo con filtro a pulsanti Tutte/Frigo/Freezer/Dispensa (scelta ricordata sul telefono, avvisi sempre visibili); Spesa con Budget in cima; Cosa cucino con «Nuova ricetta» e «✨ Da testo/foto» sopra la lista e ricerca per nome/ingredienti (senza maiuscole/accenti). Cache `cucina-v6`. File: `index.html`, `sw.js`.
+- Verificato: browser integrato a 375px, scuro e chiaro, filtro, ricerca, nessun errore in console. Dati e sincronizzazione non toccati.
+- Da fare: approvazione utente, poi commit/push della principale.
+- Problemi: nessuno.

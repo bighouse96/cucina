@@ -63,6 +63,8 @@ nav button[aria-current=true]{color:var(--accent);box-shadow:inset 0 3px 0 var(-
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}
 .chip{background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:7px 12px;font-weight:400;font-size:.9rem}
 .chip.on{border-color:var(--accent);color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}.seg button{flex:1 1 auto;background:var(--card);color:var(--fg);border:1px solid var(--line);font-weight:400;padding:9px 10px}.seg button[aria-pressed=true]{background:var(--btn);color:var(--btnfg);border-color:var(--btn);font-weight:600}
+input[type=search]{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg);-webkit-appearance:none;appearance:none}
 details.manage{margin-bottom:14px}details.manage summary{color:var(--mute);cursor:pointer;font-size:.9rem;padding:4px 0}
 .big{font-family:var(--disp);font-size:1.5rem;font-variant-numeric:tabular-nums}
 .num{font-variant-numeric:tabular-nums}
@@ -271,13 +273,17 @@ function exp(s){const d=daysLeft(s);if(d===null)return"";
  const c=d<0?"bad":d<=2?"warn":"ok";const t=d<0?"scaduto":d===0?"oggi":d===1?"domani":d+" gg";
  return `<span class="pill ${c}">${t}</span>`}
 
+const FZ_KEY="cucina-filtro-frigo";
+function fzFiltro(){try{const z=localStorage.getItem(FZ_KEY);return["Frigo","Freezer","Dispensa"].includes(z)?z:"Tutte"}catch(e){return"Tutte"}}
+function setFz(z){try{localStorage.setItem(FZ_KEY,z)}catch(e){}render()}
 function vFrigo(){
- const zone=["Avanzi","Frigo","Freezer","Dispensa"];
+ const zone=["Avanzi","Frigo","Freezer","Dispensa"],ft=fzFiltro();
  const av=S.frigo.filter(x=>x.z==="Avanzi");
  const urg=S.frigo.filter(x=>{const d=daysLeft(x.s);return x.z!=="Avanzi"&&d!==null&&d<=2});
  let h=S.esempio?`<div class="alert">Questi sono dati di esempio. <button class="ghost" onclick="reset()">Svuota e inizia</button></div>`:"";
  if(av.length)h+=`<div class="alert"><b>Avanzi da finire:</b> ${av.map(x=>esc(x.n)+" ("+(daysLeft(x.s)<=0?"oggi!":"entro "+daysLeft(x.s)+" gg")+")").join(", ")}</div>`;
  if(urg.length)h+=`<div class="alert"><b>Da usare presto:</b> ${urg.map(x=>esc(x.n)).join(", ")}</div>`;
+ h+=`<div class="seg" role="group" aria-label="Mostra">${["Tutte",...zone.slice(1)].map(z=>`<button type="button" aria-pressed="${z===ft}" onclick="setFz('${z}')">${z}</button>`).join("")}</div>`;
  h+=`<div class="row" style="margin-bottom:10px"><button class="chip" onclick="leggiScontrino()">📷 Leggi scontrino</button></div>`;
  h+=`<form class="add" onsubmit="addF(event)"><input type="text" id="fn" placeholder="Cosa hai messo via? (anche un avanzo)" required oninput="guess()" aria-label="Prodotto" style="flex-basis:100%">
  ${qtyFld("fq","fu")}
@@ -286,6 +292,7 @@ function vFrigo(){
  <button>Aggiungi</button></form><p class="sub" id="fh" style="margin-top:-6px"></p>`;
  for(const z of zone){const it=S.frigo.map((x,i)=>({...x,i})).filter(x=>x.z===z).sort((a,b)=>(a.s||"9")<(b.s||"9")?-1:1);
   if(z==="Avanzi"&&!it.length)continue;
+  if(ft!=="Tutte"&&z!==ft)continue;
   h+=`<h2>${z}</h2>`+(it.length?`<ul>${it.map(x=>`<li><span class="n">${esc(x.n)}</span>
   ${qBtn(x,`qF(${x.i})`)}${exp(x.s)}
   <button class="ghost" title="Finito: aggiungi alla spesa" onclick="finito(${x.i})">Finito</button>
@@ -302,7 +309,7 @@ function vSpesa(){
   <label class="n" for="s${x.i}">${esc(x.n)}</label>${qBtn(x,`qS(${x.i})`)}<button class="ghost" onclick="delS(${x.i})" aria-label="Togli ${esc(x.n)}">✕</button></li>`).join("")}</ul>`}
  if(!S.spesa.length)h+=`<p class="empty">Lista vuota</p>`;
  if(S.spesa.some(x=>x.d))h+=`<div class="row" style="margin-top:12px"><button onclick="toFrigo()">Metti i presi in frigo</button><button class="ghost" onclick="clearDone()">Togli i presi</button></div>`;
- return vAbituali(cats)+h+vBudget()}
+ return vBudget()+vAbituali(cats)+h}
 function vAbituali(cats){
  const inL=n=>S.spesa.some(s=>s.n.toLowerCase()===n.toLowerCase()&&!s.d);
  return `<p class="tag">Abituali — tocca per aggiungere</p><div class="chips">${S.abituali.map((x,i)=>`<button class="chip ${inL(x.n)?"on":""}" onclick="addAb(${i})">${inL(x.n)?"✓ ":"+ "}${esc(x.n)}</button>`).join("")}</div>
@@ -342,18 +349,24 @@ const ingNames=r=>r.ing.map(x=>String(x.n).toLowerCase().trim()).filter(Boolean)
 const rByName=n=>{n=String(n||"").trim().toLowerCase();return n?S.ricette.find(r=>String(r.n).trim().toLowerCase()===n):null};
 // Ricetta creata solo col nome (dalla Settimana): né ingredienti né procedimento
 const daCompilare=r=>!ingNames(r).length&&!r.passi.some(p=>String(p).trim());
-function vIdee(){
+const norm=t=>String(t||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+let qIdee="";
+function cercaIdee(el){qIdee=el.value;byId("ideeLista").innerHTML=listaIdee()}
+function listaIdee(){
+ const q=norm(qIdee).trim();
  const r=S.ricette.map((x,k)=>{const ns=ingNames(x).filter(i=>!isBase(i)),miss=ns.filter(i=>!have(i));
   const urgent=ns.some(i=>S.frigo.some(f=>f.n.toLowerCase().includes(i)&&daysLeft(f.s)!==null&&daysLeft(f.s)<=2));
-  return{...x,k,ns,miss,urgent,dc:daCompilare(x)}}).sort((a,b)=>a.dc-b.dc||a.miss.length-b.miss.length||b.urgent-a.urgent);
- let h=`<p class="sub">Piatti ordinati per quello che hai già in casa. Sale, olio e gli altri ingredienti di base non contano (si cambiano in ⚙︎).</p>`;
- h+=r.map(x=>`<div class="idea"><div class="row" style="justify-content:space-between;align-items:center"><button class="link ${x.dc?"rossa":""}" onclick="apriR(${x.k})">${esc(x.n)}</button>
+  return{...x,k,ns,miss,urgent,dc:daCompilare(x)}}).sort((a,b)=>a.dc-b.dc||a.miss.length-b.miss.length||b.urgent-a.urgent).filter(x=>!q||norm(x.n).includes(q)||ingNames(x).some(i=>norm(i).includes(q)));
+ if(!r.length)return`<p class="empty">Nessuna ricetta trovata</p>`;
+ return r.map(x=>`<div class="idea"><div class="row" style="justify-content:space-between;align-items:center"><button class="link ${x.dc?"rossa":""}" onclick="apriR(${x.k})">${esc(x.n)}</button>
  ${x.dc?`<span class="pill bad">da compilare</span>`:x.miss.length?`<span class="pill warn">mancano ${x.miss.length}</span>`:`<span class="pill ok">hai tutto</span>`}</div>
  <p class="sub" style="margin:6px 0">${x.dc?"Mancano ingredienti e procedimento: apri la ricetta e tocca «Modifica».":x.ns.map(i=>have(i)?esc(i):`<s>${esc(i)}</s>`).join(" · ")}${x.urgent?" — usa ciò che scade":""}</p>
  <div class="row"><button class="chip" onclick="apriR(${x.k})">Apri ricetta</button><select id="d-${esc(x.n)}" aria-label="Giorno">${giorni.map(g=>`<option>${g}</option>`).join("")}</select>
- <button onclick="plan('${esc(x.n).replace(/'/g,"")}',this.previousElementSibling.value)">Metti a cena</button></div></div>`).join("");
- h+=`<div class="row" style="margin-top:16px"><button onclick="editR(null)">+ Nuova ricetta</button><button class="chip" onclick="nuovaDaAI()">✨ Da testo/foto</button></div>`;
- return h}
+ <button onclick="plan('${esc(x.n).replace(/'/g,"")}',this.previousElementSibling.value)">Metti a cena</button></div></div>`).join("")}
+function vIdee(){
+ return `<div class="row" style="margin-bottom:12px"><button onclick="editR(null)">+ Nuova ricetta</button><button class="chip" onclick="nuovaDaAI()">✨ Da testo/foto</button></div>
+ <input type="search" id="qi" placeholder="Cerca per nome o ingrediente" value="${esc(qIdee)}" oninput="cercaIdee(this)" aria-label="Cerca ricetta" style="width:100%;margin-bottom:12px">
+ <p class="sub">Piatti ordinati per quello che hai già in casa. Sale, olio e gli altri ingredienti di base non contano (si cambiano in ⚙︎).</p><div id="ideeLista">${listaIdee()}</div>`}
 function vImpo(){
  let h=`<h2>Famiglia</h2>`;
  if(Fam.code)h+=`<div class="idea"><p class="tag" style="margin:0 0 6px">Codice famiglia</p><p class="code" style="margin:0 0 10px">${esc(Fam.code)}</p>
