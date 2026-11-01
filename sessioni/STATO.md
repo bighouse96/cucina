@@ -22,3 +22,9 @@
 - Verificato: browser integrato a 375px, scuro e chiaro, filtro, ricerca, nessun errore in console. Dati e sincronizzazione non toccati.
 - Da fare: approvazione utente, poi commit/push della principale.
 - Problemi: nessuno.
+
+## proponi-settimana
+- Fatto (fase 1, cache `cucina-v7`, file `index.html`, `sw.js`): toccando un pasto nella Settimana compare «💡 Proponi tu» con 3 proposte e il motivo in una riga, tasto «↻ Altre proposte». Motore locale: + ingredienti in casa (molto di più se scadono entro il giorno del pasto), − da comprare, − cucinata da poco o già in settimana; avanzi per primi se ancora buoni quel giorno; ingredienti di base ignorati. Nomi tolleranti (`stessoIng`: accenti, singolare/plurale, «mozzarella di bufala» ≈ «mozzarella», «petto di pollo» ≈ «pollo»), usati anche da «Cosa cucino», scheda ricetta e «Cucinato!». «Cucinato!» salva `fatta` (data) nella ricetta: campo in più, le versioni vecchie lo conservano. Niente nuove sezioni né regole Firestore.
+- Verificato: browser integrato a 375px, chiaro e scuro, nessun errore in console.
+- Da fare: approvazione utente della fase 1 → commit/push della principale; poi fase 2 («Proponi settimana», persone, ristorante).
+- Problemi: nessuno.
