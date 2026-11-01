@@ -54,6 +54,10 @@ li.done .n{text-decoration:line-through;color:var(--mute)}
 .mslot.rossa,.mslot.rossa .tag{border-color:var(--bad);color:var(--bad)}
 .prop{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;margin-bottom:8px;text-align:left;background:var(--card);color:var(--fg);border:1px solid var(--line);font-weight:400;padding:12px 14px}
 .prop b{font-family:var(--disp);font-size:1.1rem;font-weight:600}.prop span{color:var(--mute);line-height:1.35}
+.bz{display:flex;flex-direction:column;align-items:flex-start;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.bz b{font-family:var(--disp);font-size:1.1rem;font-weight:600}.bz .mot,.bz b.mute{color:var(--mute)}.bz.fisso{background:transparent}
+.bz .row{margin-top:4px;align-items:center}.bz .chip{padding:6px 10px}
+.pers{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:99px}.pers button.ghost{padding:6px 12px;font-size:1.1rem;color:var(--fg)}
 .pick{display:block;width:100%;text-align:left;background:none;color:var(--fg);font-weight:400;padding:4px 0}
 .rossa{color:var(--bad)}
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
@@ -336,14 +340,25 @@ function vBudget(){
  return h}
 function vMenu(){
  const t=(new Date().getDay()+6)%7;
- let h=`<p class="sub">Tocca pranzo o cena per scegliere una ricetta o scrivere un piatto nuovo.</p>`,rosse=false;
- const slot=(g,k,val)=>{const r=rByName(val),red=!!r&&daCompilare(r);rosse=rosse||red;
-  return`<button class="mslot ${val?"":"vuoto"} ${red?"rossa":""}" onclick="pickM('${g}','${k}')"><span class="tag">${k==="p"?"Pranzo":"Cena"}${red?" · da compilare":""}</span><span class="mn">${val?esc(val):"—"}</span></button>`};
+ let h=`<div class="row" style="margin-bottom:10px"><button onclick="apriBozza()">💡 Proponi settimana</button></div>
+ <p class="sub">Tocca pranzo o cena per scegliere una ricetta o scrivere un piatto nuovo. Siamo in ${defPers()} (si cambia in ⚙︎; per un solo pasto, toccalo).</p>`,rosse=false;
+ const slot=(g,k,val)=>{const r=rByName(val),red=!!r&&daCompilare(r),fu=isFuori(val),np=(S.menu[g]||{})["n"+k];rosse=rosse||red;
+  return`<button class="mslot ${val&&!fu?"":"vuoto"} ${red?"rossa":""}" onclick="pickM('${g}','${k}')"><span class="tag">${k==="p"?"Pranzo":"Cena"}${np>0&&!fu?` · ${np} pers.`:""}${red?" · da compilare":""}</span><span class="mn">${fu?"🍽 Fuori":val?esc(val):"—"}</span></button>`};
  giorni.forEach((g,i)=>{const m=S.menu[g]||{};
   h+=`<div class="day ${i===t?"today":""}"><b>${g}</b>${slot(g,"p",m.p)}${slot(g,"c",m.c)}</div>`});
  if(rosse)h+=`<p class="sub rossa" style="margin-top:10px">In rosso: ricette ancora da compilare. Toccale e scegli «Compila la ricetta».</p>`;
- h+=`<div class="row" style="margin-top:14px"><button onclick="menuToSpesa()">Ingredienti mancanti → spesa</button><button class="ghost" onclick="S.menu={};save()">Svuota settimana</button></div>`;
+ h+=`<div class="row" style="margin-top:14px"><button onclick="aggiungiMancanti()">Ingredienti mancanti → spesa</button><button class="ghost" onclick="svuotaSett()">Svuota settimana</button></div>`;
  return h}
+// «Svuota settimana» tiene il numero di persone
+function svuotaSett(){S.menu=S.menu._persone>0?{_persone:S.menu._persone}:{};save()}
+/* Persone e ristorante, dentro S.menu senza cambiarne il formato (le versioni vecchie conservano i campi in più):
+   S.menu._persone = quante siamo di solito; S.menu[giorno].np / .nc = persone di quel pranzo / cena;
+   un pasto fuori è il piatto «Fuori / ristorante» (così anche le versioni vecchie lo mostrano). */
+const FUORI="Fuori / ristorante";
+const isFuori=v=>!!v&&piega(v)===piega(FUORI);
+const defPers=()=>S.menu._persone>0?S.menu._persone:2;
+const personeDi=(g,k)=>{const n=(S.menu[g]||{})["n"+k];return n>0?n:defPers()};
+function setPersone(d){touch();S.menu._persone=Math.max(1,Math.min(20,defPers()+d));save()}
 function have(ing){return S.frigo.some(x=>stessoIng(x.n,ing))}
 function isBase(ing){const n=String(ing).toLowerCase().trim();
  return S.base.some(b=>{b=String(b).toLowerCase().trim();return b&&(n===b||n.startsWith(b+" "))})}
@@ -387,6 +402,7 @@ function vImpo(){
  if(Fam.msg)h+=`<div class="alert">${esc(Fam.msg)}</div>`;
  if(Fam.code)h+=`<button class="ghost" style="color:var(--bad)" onclick="Fam.esci()">Esci dalla famiglia</button>`;
  else if(Fam.mostraGate)h+=`<button onclick="Fam.mostraGate()">Crea o entra in una famiglia</button>`;
+ h+=`<h2>Quante persone siamo</h2><p class="sub">Le dosi delle ricette proposte e della spesa si calcolano su questo numero. Per un singolo pasto lo cambi toccandolo nella Settimana.</p>${stepper(defPers(),"setPersone","Persone")}`;
  h+=`<h2>Ingredienti di base</h2><p class="sub">Quelli che hai sempre in casa: «Cosa cucino» non li conta come mancanti e «Cucinato!» non li toglie dal frigo. Vale per tutta la famiglia.</p>
  <div class="chips">${S.base.map((b,k)=>`<button class="chip" onclick="delBase(${k})" aria-label="Togli ${esc(b)}">${esc(b)} ✕</button>`).join("")||`<span class="sub">Nessuno</span>`}</div>
  <form class="add" onsubmit="addBase(event)"><input type="text" id="bn" placeholder="Aggiungi (es. aceto, farina)" required><button>Aggiungi</button></form>`;
@@ -452,10 +468,6 @@ function plan(n,g){touch();(S.menu[g]=S.menu[g]||{}).c=n;view="menu";save()}
 function addBase(e){e.preventDefault();
  for(const b of v("bn").toLowerCase().split(",").map(s=>s.trim()).filter(Boolean))if(!S.base.includes(b))S.base.push(b);save()}
 function delBase(k){S.base.splice(k,1);save()}
-function menuToSpesa(){let k=0;const piatti=Object.values(S.menu).flatMap(m=>[m.p,m.c]).filter(Boolean);
- piatti.forEach(p=>{const r=S.ricette.find(x=>x.n.toLowerCase()===p.toLowerCase());if(!r)return;
-  ingNames(r).filter(i=>!isBase(i)&&!have(i)&&!S.spesa.some(s=>s.n.toLowerCase()===i&&!s.d)).forEach(i=>{S.spesa.push({n:i,c:"Altro",d:false});k++})});
- view="spesa";save()}
 function reset(){S={frigo:[],spesa:[],menu:{},ricette:normRicette(structuredClone(sample.ricette)),abituali:S.abituali,scontrini:[],limite:0,base:S.base};save()}
 
 /* ---------- Quantità e unità ---------- */
@@ -491,7 +503,7 @@ function openSheet(s){sheet=s;renderSheet();byId("sheet").scrollTop=0}
 function closeSheet(){sheet=null;D=null;renderSheet()}
 function renderSheet(){const el=byId("sheet");
  if(!sheet){el.hidden=true;el.innerHTML="";document.body.style.overflow=""}
- else{el.hidden=false;document.body.style.overflow="hidden";el.innerHTML=`<div class="box">${({r:vRicetta,e:vEditor,c:vCook,k:vCucinato,m:vPick,a:vImporta,w:vAttesa,s:vScontrino}[sheet.t])()}</div>`}
+ else{el.hidden=false;document.body.style.overflow="hidden";el.innerHTML=`<div class="box">${({r:vRicetta,e:vEditor,c:vCook,k:vCucinato,m:vPick,b:vBozza,a:vImporta,w:vAttesa,s:vScontrino}[sheet.t])()}</div>`}
  const vuole=!!sheet&&sheet.t==="c";if(vuole!==wlOn)wake(vuole);
  tPos()}
 function sparita(){return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button></div><p class="empty">Questa ricetta non c'è più (forse è stata eliminata da un altro telefono).</p>`}
@@ -521,7 +533,9 @@ function pickM(g,k){openSheet({t:"m",g,k,q:"",pg:0})}
 function vPick(){const cur=(S.menu[sheet.g]||{})[sheet.k]||"",r=rByName(cur);
  return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button></div>
  <h1>${GIORNI_L[giorni.indexOf(sheet.g)]} · ${sheet.k==="p"?"pranzo":"cena"}</h1>
- ${cur?`<p class="sub">Ora: <b class="${r&&daCompilare(r)?"rossa":""}">${esc(cur)}</b></p><div class="row">${r?`<button class="chip" onclick="apriDaMenu()">${daCompilare(r)?"Compila la ricetta":"Apri ricetta"}</button>`:""}<button class="chip" onclick="setPick('')">Togli dal menù</button></div>`:""}
+ ${cur?`<p class="sub">Ora: <b class="${r&&daCompilare(r)?"rossa":""}">${isFuori(cur)?"🍽 ":""}${esc(cur)}</b></p><div class="row">${r?`<button class="chip" onclick="apriDaMenu()">${daCompilare(r)?"Compila la ricetta":"Apri ricetta"}</button>`:""}<button class="chip" onclick="setPick('')">Togli dal menù</button></div>`:""}
+ ${isFuori(cur)?"":stepper(personeDi(sheet.g,sheet.k),"persPick","Persone a tavola")}
+ <div class="row">${isFuori(cur)?"":`<button class="chip" onclick="setPick(FUORI)">🍽 Fuori / ristorante</button>`}<button class="chip" onclick="giornoFuori()">🍽 Tutto il giorno fuori</button></div>
  <h2>💡 Proponi tu</h2><p class="sub">In base a cosa hai in casa e a cosa scade prima. Tocca una proposta per sceglierla.</p>
  <div id="prop">${propHtml()}</div>
  <h2>Scegli o scrivi il piatto</h2>
@@ -541,7 +555,11 @@ function mpNuova(){const n=String(sheet.q||"").trim().replace(/\s+/g," ");if(!n)
  if(!rByName(n)){S.ricette.push({n,p:2,ing:[],passi:[],i:[],id:nuovoId()});toast(`«${n}» aggiunta alle ricette: da compilare.`)}
  setPick(rByName(n).n)}
 function apriDaMenu(){const r=rByName((S.menu[sheet.g]||{})[sheet.k]);if(!r)return;
- if(daCompilare(r))editR(rKey(r));else openSheet({t:"r",key:rKey(r),porz:r.p})}
+ if(daCompilare(r))editR(rKey(r));else openSheet({t:"r",key:rKey(r),porz:personeDi(sheet.g,sheet.k)})}
+// Persone di un solo pasto: se torna uguale al numero solito, il campo si toglie
+function persPick(d){const m=S.menu[sheet.g]=S.menu[sheet.g]||{},n=Math.max(1,Math.min(20,personeDi(sheet.g,sheet.k)+d)),c="n"+sheet.k;
+ if(n===defPers())delete m[c];else m[c]=n;touch();save();renderSheet()}
+function giornoFuori(){const m=S.menu[sheet.g]=S.menu[sheet.g]||{};m.p=FUORI;m.c=FUORI;touch();closeSheet();save()}
 
 /* ---------- Proposte per i pasti: motore locale, niente AI ----------
    Punti: + ingrediente in casa, molto di più se scade presto; − ingrediente mancante;
@@ -553,10 +571,23 @@ const traGiorni=g=>(giorni.indexOf(g)-oggiIdx()+7)%7;
 const quando=d=>d<0?"già scaduto":d===0?"oggi":d===1?"domani":"tra "+d+" giorni";
 // Scorte di casa (senza avanzi), con quantità convertite per poterle sommare e scalare
 const scorte=()=>S.frigo.filter(x=>x.z!=="Avanzi").map(x=>({n:x.n,z:x.z,e:daysLeft(x.s),c:conv(x.q,x.u)}));
+// Scorte che vanno bene per un ingrediente quel giorno: non scadute, non finite, prima quelle che scadono prima
+const disponibili=(sc,nome,dg)=>sc.filter(o=>!o.via&&stessoIng(o.n,nome)&&(o.e===null||o.e>=dg)&&(!o.c||o.c.v>1e-6)).sort((a,b)=>(a.e??1e4)-(b.e??1e4));
+/* Toglie dalle scorte simulate ciò che serve alla ricetta (così le zucchine usate lunedì non valgono martedì)
+   e restituisce cosa manca, con la quantità quando si sa. Senza quantità segnata: in frigo si considera
+   finito dopo l'uso, in dispensa e freezer si suppone che basti. */
+function consuma(r,sc,pers,dg){const f=pers/r.p,manca=[];
+ for(const x of r.ing){const nome=String(x.n).trim();if(!nome||isBase(nome))continue;
+  const m=disponibili(sc,nome,dg),need=conv(x.q>0?x.q*f:null,x.u),ign=m.find(o=>!o.c||!need||o.c.b!==need.b);
+  if(!m.length){manca.push({n:nome,need});continue}
+  if(need)for(const o of m)if(o.c&&o.c.b===need.b&&need.v>1e-6){const t=Math.min(o.c.v,need.v);o.c.v-=t;need.v-=t}
+  if(need&&need.v>1e-6&&!ign){manca.push({n:nome,need});continue}
+  if((!need||need.v>1e-6)&&ign&&!ign.c&&ign.z==="Frigo")ign.via=true}
+ return manca}
 function valuta(r,dg,sc,porz,giaInSett){
  const f=(porz||r.p)/r.p,usa=[],manca=[];let pt=0;
  for(const x of r.ing){const nome=String(x.n).trim();if(!nome||isBase(nome))continue;
-  const m=sc.filter(o=>stessoIng(o.n,nome)&&(o.e===null||o.e>=dg)&&(!o.c||o.c.v>1e-6)),need=conv(x.q>0?x.q*f:null,x.u);
+  const m=disponibili(sc,nome,dg),need=conv(x.q>0?x.q*f:null,x.u);
   let tot=0,ignota=false;for(const o of m){if(o.c&&need&&o.c.b===need.b)tot+=o.c.v;else ignota=true}
   // se in casa ce n'è meno di metà del necessario, conta come mancante
   if(!m.length||(need&&!ignota&&tot<need.v*.5)){manca.push(nome);pt-=3;continue}
@@ -581,7 +612,7 @@ function proposte(g,k){const dg=traGiorni(g),cur=piega((S.menu[g]||{})[k]||""),s
   if((e!==null&&e<dg)||n===cur||nel.includes(n))continue;
   out.push({n:x.n,pt:1000-(e??9),mot:e===null?"Avanzo da finire":`Avanzo da finire: scade ${quando(e)}`})}
  for(const r of S.ricette){const n=piega(r.n);if(daCompilare(r)||n===cur)continue;
-  const v=valuta(r,dg,sc,r.p,nel.filter(x=>x===n).length);out.push({n:r.n,pt:v.pt,mot:motivo(v)})}
+  const v=valuta(r,dg,sc,personeDi(g,k),nel.filter(x=>x===n).length);out.push({n:r.n,pt:v.pt,mot:motivo(v)})}
  return out.sort((a,b)=>b.pt-a.pt)}
 function propHtml(){const L=sheet.prop=proposte(sheet.g,sheet.k);
  if(!L.length)return`<p class="empty">Nessuna proposta: aggiungi qualche ricetta in «Cosa cucino».</p>`;
@@ -590,6 +621,78 @@ function propHtml(){const L=sheet.prop=proposte(sheet.g,sheet.k);
   +(pag>1?`<button class="chip" onclick="altreProp()">↻ Altre proposte <span class="tag">${pg+1} di ${pag}</span></button>`:"")}
 function altreProp(){sheet.pg=(sheet.pg||0)+1;byId("prop").innerHTML=propHtml()}
 function propSel(i){const x=sheet.prop&&sheet.prop[i];if(x)setPick(x.n)}
+
+/* ---------- Proponi settimana: bozza per 7 giorni da oggi, poi conferma ----------
+   I pasti già scelti restano (e consumano le scorte); per ogni pasto libero si prende la proposta
+   migliore con le scorte rimaste. sheet.sl[giorno+pasto] = {modo:"fuori"|"vuoto", n: piatto scelto con «Altra», pers} */
+const ordineSett=()=>giorni.map(g=>({g,dg:traGiorni(g)})).sort((a,b)=>a.dg-b.dg);
+function genera(sl){const sc=scorte(),av=S.frigo.filter(x=>x.z==="Avanzi").map(x=>({n:x.n,e:daysLeft(x.s)})),nel=[],out=[];
+ // prima i pasti già scelti: hanno la precedenza sulle scorte e sugli avanzi
+ for(const{g,dg}of ordineSett())for(const k of["p","c"]){const v=(S.menu[g]||{})[k];if(!v||isFuori(v))continue;
+  nel.push(piega(v));const r=rByName(v);
+  if(r)consuma(r,sc,(sl[g+k]||{}).pers||personeDi(g,k),dg);else{const i=av.findIndex(a=>piega(a.n)===piega(v));if(i>=0)av.splice(i,1)}}
+ for(const{g,dg}of ordineSett())for(const k of["p","c"]){const id=g+k,o=sl[id]||{},cur=(S.menu[g]||{})[k]||"",pers=o.pers||personeDi(g,k),b={g,k,dg,id,pers};
+  if(cur){out.push({...b,fisso:true,n:cur});continue}
+  if(o.modo){out.push({...b,modo:o.modo});continue}
+  const L=[];
+  for(const a of av)if(a.e===null||a.e>=dg)L.push({n:a.n,pt:1000-(a.e??9),mot:a.e===null?"Avanzo da finire":`Avanzo da finire: scade ${quando(a.e)}`,a});
+  for(const r of S.ricette){if(daCompilare(r))continue;const n=piega(r.n),v=valuta(r,dg,sc,pers,nel.filter(x=>x===n).length);L.push({n:r.n,pt:v.pt,mot:motivo(v),r})}
+  if(!L.length){out.push({...b,modo:"vuoto"});continue}
+  L.sort((x,y)=>y.pt-x.pt);const x=L.find(y=>y.n===o.n)||L[0];
+  if(x.a)av.splice(av.indexOf(x.a),1);else consuma(x.r,sc,pers,dg);
+  nel.push(piega(x.n));out.push({...b,n:x.n,mot:x.mot,L:L.map(y=>y.n)})}
+ return out}
+function apriBozza(){openSheet({t:"b",sl:{}})}
+function vBozza(){const s=sheet;if(s.fatto)return vBozzaFatta();
+ const P=s.piano=genera(s.sl),liberi=P.filter(x=>!x.fisso).length;let h=`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button><b>Proponi settimana</b><span></span></div>
+ <p class="sub">Bozza per i prossimi 7 giorni, da oggi. I pasti già scelti restano come sono. Cambia quello che vuoi, poi tocca «Conferma». Persone di solito: ${defPers()}.</p>`;
+ if(!liberi)h+=`<div class="alert">Tutti i pasti sono già scelti. Per una proposta nuova togli qualche piatto dalla Settimana.</div>`;
+ let gg="";
+ P.forEach((x,i)=>{if(x.g!==gg){gg=x.g;h+=`<h2>${GIORNI_L[giorni.indexOf(x.g)]}${x.dg===0?" (oggi)":x.dg===1?" (domani)":""}</h2>`}
+  const pr=x.modo==="fuori"||isFuori(x.n)?"":`<span class="pers"><button class="ghost" onclick="bzPers(${i},-1)" aria-label="Una persona in meno">−</button><span class="num">${x.pers} pers.</span><button class="ghost" onclick="bzPers(${i},1)" aria-label="Una persona in più">+</button></span>`;
+  h+=`<div class="bz ${x.fisso?"fisso":""}"><span class="tag">${x.k==="p"?"Pranzo":"Cena"}${x.fisso?" · già scelto":""}</span>`;
+  if(x.fisso)h+=`<b>${isFuori(x.n)?"🍽 ":""}${esc(x.n)}</b><div class="row">${pr}</div>`;
+  else if(x.modo==="fuori")h+=`<b>🍽 Fuori / ristorante</b><div class="row"><button class="chip" onclick="bzModo(${i},'')">Proponi un piatto</button></div>`;
+  else if(x.modo==="vuoto")h+=`<b class="mute">Niente</b><div class="row"><button class="chip" onclick="bzModo(${i},'')">Proponi un piatto</button><button class="chip" onclick="bzModo(${i},'fuori')">🍽 Fuori</button></div>`;
+  else h+=`<b>${esc(x.n)}</b><span class="mot">${esc(x.mot)}</span><div class="row">${x.L.length>1?`<button class="chip" onclick="bzAltra(${i})">↻ Altra</button>`:""}<button class="chip" onclick="bzModo(${i},'fuori')">🍽 Fuori</button><button class="chip" onclick="bzModo(${i},'vuoto')">Niente</button>${pr}</div>`;
+  h+=`</div>`});
+ h+=`<div class="row" style="margin-top:20px"><button onclick="confermaBozza()" style="flex:1">Conferma la settimana</button></div>`;
+ return h}
+const bzSl=i=>{const x=sheet.piano[i];return sheet.sl[x.id]=sheet.sl[x.id]||{}};
+// «Altra» fissa il piatto successivo in classifica: non cambia più se cambi persone o altri pasti
+function bzAltra(i){const x=sheet.piano[i];bzSl(i).n=x.L[(x.L.indexOf(x.n)+1)%x.L.length];renderSheet()}
+function bzModo(i,m){const o=bzSl(i);if(m)o.modo=m;else{delete o.modo;delete o.n}renderSheet()}
+function bzPers(i,d){const x=sheet.piano[i];bzSl(i).pers=Math.max(1,Math.min(20,x.pers+d));renderSheet()}
+function confermaBozza(){const P=genera(sheet.sl),prima=JSON.stringify(S.menu);let k=0;
+ for(const x of P){const m=S.menu[x.g]=S.menu[x.g]||{},o=sheet.sl[x.id]||{};
+  if(!x.fisso){const n=x.modo==="fuori"?FUORI:x.modo==="vuoto"?"":x.n;if(n){m[x.k]=n;k++}}
+  if(o.pers){if(o.pers===defPers())delete m["n"+x.k];else m["n"+x.k]=o.pers}}
+ touch();save();sheet.fatto=true;sheet.k=k;sheet.prima=prima;renderSheet();byId("sheet").scrollTop=0}
+function vBozzaFatta(){const M=mancantiSettimana(),nuovi=M.filter(x=>!inSpesa(x.n));
+ return`<div class="top"><span></span><b>Settimana salvata</b><button class="ghost" onclick="closeSheet()">Chiudi</button></div>
+ <h1>Fatto ✓</h1><p class="sub">${sheet.k?`Ho messo ${sheet.k===1?"1 pasto":sheet.k+" pasti"} nella Settimana.`:"Nessun pasto nuovo."} Puoi sempre cambiarli toccandoli. <button class="ghost" style="color:var(--accent);font-weight:700" onclick="annullaBozza()">Annulla</button></p>
+ <h2>Da comprare per la settimana</h2>${nuovi.length?`<ul>${nuovi.map(x=>`<li><span class="n">${esc(x.n)}</span><span class="num">${x.q?fmtN(x.q,x.u)+" "+esc(x.u):""}</span></li>`).join("")}</ul>
+ <p class="sub" style="margin-top:8px">Dosi calcolate sulle persone di ogni pasto, togliendo ciò che hai già in casa.</p>
+ <div class="row" style="margin-top:12px"><button onclick="aggiungiMancanti()" style="flex:1">🛒 Aggiungi alla spesa (${nuovi.length})</button></div>`
+ :`<p class="empty">${M.length?"È già tutto nella lista della spesa.":"Non manca niente: hai tutto in casa."}</p>`}
+ <div class="row" style="margin-top:12px"><button class="chip" onclick="closeSheet()" style="flex:1">Torna alla Settimana</button></div>`}
+function annullaBozza(){S.menu=JSON.parse(sheet.prima);closeSheet();save();toast("Annullato: Settimana come prima.")}
+
+/* Ingredienti mancanti per i pasti della settimana (da oggi), scalati sulle persone e tolto ciò che c'è in casa */
+function mancantiSettimana(){const sc=scorte(),tot=new Map();
+ for(const{g,dg}of ordineSett())for(const k of["p","c"]){const r=rByName((S.menu[g]||{})[k]);if(!r||daCompilare(r))continue;
+  for(const x of consuma(r,sc,personeDi(g,k),dg)){const key=testa(x.n),t=tot.get(key)||{n:x.n,v:0,b:null,ko:false};
+   if(x.need){if(t.b&&t.b!==x.need.b)t.ko=true;else{t.b=x.need.b;t.v+=x.need.v}}tot.set(key,t)}}
+ // quantità da comprare arrotondate per eccesso; unità che non si comprano (es. cucchiai) restano senza quantità
+ return[...tot.values()].map(t=>{let q=null,u=t.b;
+  if(t.b&&!t.ko&&["g","ml","pz"].includes(t.b)){q=t.b==="pz"?Math.ceil(t.v-1e-6):Math.ceil(t.v/(t.v>=100?10:1)-1e-6)*(t.v>=100?10:1);
+   if(q>=1000&&t.b!=="pz"){q=Math.round(q/100)/10;u=t.b==="g"?"kg":"l"}}
+  return q>0?{n:t.n,q,u}:{n:t.n}})}
+const inSpesa=n=>S.spesa.some(s=>!s.d&&stessoIng(s.n,n));
+function aggiungiMancanti(){const nuovi=mancantiSettimana().filter(x=>!inSpesa(x.n)).map(x=>({...x,c:(S.abituali.find(a=>stessoIng(a.n,x.n))||{}).c||"Altro",d:false}));
+ if(!nuovi.length){toast("Non manca niente per i pasti della settimana.");return}
+ touch();S.spesa.push(...nuovi);closeSheet();view="spesa";save();scrollTo(0,0);
+ toast(`${nuovi.length===1?"1 ingrediente aggiunto":nuovi.length+" ingredienti aggiunti"} alla spesa.`,()=>{nuovi.forEach(o=>togliStesso(S.spesa,o));save()})}
 
 /* Editor ricetta: lavora su una bozza (D), salva solo con «Salva» */
 function editR(key){const r=key!=null?findR(key):null;
