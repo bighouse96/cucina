@@ -4,6 +4,7 @@
 - Sync: Firestore piano gratuito + login anonimo; codice famiglia `XXXX-XXXX-XXXX-XXXX` come segreto condiviso.
 - Dati: un documento per sezione in `famiglie/{codice}/sezioni/{nome}`; telefoni vecchi non devono perdere campi nuovi.
 - AI: Gemini piano gratuito tramite Worker Cloudflare `cucina-gemini` (chiave solo nei secret).
+- Foto ricette: JPEG compresso in `famiglie/{codice}/foto/{id}` (no Firebase Storage); ricerca Google di Gemini spenta (`RICERCA_WEB = "no"`).
 - Proposte settimana: motore locale, niente AI.
 - Grafica: palette «Pesca e menta», pulsanti chiari con testo scuro, contrasto AA.
 - Git: commit e push solo la sessione principale.
