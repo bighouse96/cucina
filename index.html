@@ -495,10 +495,16 @@ const DURRE=/(?:(mezz['’]?\s?ora)|(un['’]?\s?ora)|(\d+(?:[.,]\d+)?)(?:\s*(?:
 function durSec(m){let s;if(m[1])s=1800;else if(m[2])s=3600;
  else{const n=parseFloat(m[3].replace(",",".")),u=m[4].toLowerCase();s=n*(u[0]==="o"||u==="h"?3600:u.startsWith("min")?60:1)}
  return Math.round(s+(m[5]?1800:0))}
-function stepHtml(t,pre){let h="",i=0;DURRE.lastIndex=0;
- for(const m of String(t).matchAll(DURRE)){const s=durSec(m);if(!(s>0))continue;
-  h+=esc(t.slice(i,m.index))+`<button class="tchip" data-s="${s}" data-l="${esc((pre?pre+" · ":"")+m[0])}" onclick="tStartEl(this)" aria-label="Avvia timer ${esc(m[0])}">⏱ ${esc(m[0])}</button>`;i=m.index+m[0].length}
- return h+esc(String(t).slice(i))}
+// Durate senza minuti (es. pasta «per il tempo indicato sulla confezione»): il timer chiede i minuti
+const VAGO=/(?:il\s+)?tempo\s+(?:indicato|riportato|scritto|consigliato|necessario)(?:\s+(?:sulla|nella|in)\s+confezione)?|(?:come|quanto)\s+indicato\s+(?:sulla|nella)\s+confezione|secondo\s+(?:la|le\s+istruzioni\s+della)\s+confezione|finch[ée]\s+(?:non\s+)?(?:è|sia|sarà)\s+al\s+dente|al\s+dente/gi;
+function vagoHtml(t,pre){let h="",i=0;
+ for(const m of t.matchAll(VAGO)){
+  h+=esc(t.slice(i,m.index))+`<button class="tchip" data-l="${esc((pre?pre+" · ":"")+m[0])}" onclick="tManual(this.dataset.l)" aria-label="Avvia timer, scegli i minuti">⏱ ${esc(m[0])}</button>`;i=m.index+m[0].length}
+ return h+esc(t.slice(i))}
+function stepHtml(t,pre){let h="",i=0;t=String(t);DURRE.lastIndex=0;
+ for(const m of t.matchAll(DURRE)){const s=durSec(m);if(!(s>0))continue;
+  h+=vagoHtml(t.slice(i,m.index),pre)+`<button class="tchip" data-s="${s}" data-l="${esc((pre?pre+" · ":"")+m[0])}" onclick="tStartEl(this)" aria-label="Avvia timer ${esc(m[0])}">⏱ ${esc(m[0])}</button>`;i=m.index+m[0].length}
+ return h+vagoHtml(t.slice(i),pre)}
 
 /* ---------- Schede a tutto schermo ---------- */
 let sheet=null,D=null,D0="";
@@ -996,8 +1002,8 @@ let tSig="";
 function tStartEl(b){tStart(+b.dataset.s,b.dataset.l)}
 function tStart(sec,l){audioUnlock();TIM.push({id:"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),l,end:Date.now()+sec*1000});tSave();tTick();
  toast("Timer avviato: "+l)}
-function tManual(){const m=prompt("Timer di quanti minuti?","10");if(m===null)return;const x=parseFloat(m.replace(",","."));
- if(x>0)tStart(Math.round(x*60),"Timer "+m.trim()+" min");else alert("Scrivi un numero di minuti, es. 10.")}
+function tManual(l){const m=prompt(l?"«"+l+"»: quanti minuti?":"Timer di quanti minuti?","10");if(m===null)return;const x=parseFloat(m.replace(",","."));
+ if(x>0)tStart(Math.round(x*60),(l||"Timer")+" · "+m.trim()+" min");else alert("Scrivi un numero di minuti, es. 10.")}
 function tStop(id){TIM=TIM.filter(t=>t.id!==id);tSave();if(!TIM.some(t=>t.fired))alarmStop();tTick()}
 function tPiu(id){const t=TIM.find(t=>t.id===id);if(!t)return;t.end=Math.max(t.end,Date.now())+60000;t.fired=false;tSave();if(!TIM.some(t=>t.fired))alarmStop();tTick()}
 const tFmt=ms=>{const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,"0");return h?`${h}:${String(m).padStart(2,"0")}:${x}`:`${m}:${x}`};
