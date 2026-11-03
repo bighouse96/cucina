@@ -8,6 +8,8 @@ workers_dev = true
 [vars]
 ORIGINI = "https://bighouse96.github.io"
 MODELLI = "gemini-3.8-flash,gemini-3.5-flash-lite"
+# Ricerca Google per «Cerca ricetta»: nel piano gratuito non è disponibile (429). "si" solo con la fatturazione attiva.
+RICERCA_WEB = "no"
 
 # Limite per IP: 10 richieste al minuto (Rate Limiting di Cloudflare)
 [[ratelimits]]

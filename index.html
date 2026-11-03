@@ -151,6 +151,12 @@ form.add>button{align-self:flex-end}
 .attesa{text-align:center;padding-top:28vh}
 .attesa .ruota{display:inline-block;width:40px;height:40px;box-sizing:border-box;border-radius:50%;border:4px solid var(--line);border-top-color:var(--accent);animation:gira .8s linear infinite}
 .anteprima{max-height:72px;max-width:96px;border-radius:8px;border:1px solid var(--line)}
+/* Foto delle ricette: miniatura in elenco, foto grande nella scheda (sfondo finché si carica) */
+.rtit{display:flex;align-items:center;gap:10px;min-width:0}
+img[data-foto]{background:var(--line)}img.nofoto{display:none}
+.mini{width:56px;height:56px;flex:none;object-fit:cover;border-radius:10px}
+.fotoR{display:block;width:100%;aspect-ratio:4/3;max-height:300px;object-fit:cover;border-radius:14px;margin:8px 0}
+.fonti a{color:var(--accent);font-weight:700}
 .scr{border-top:1px solid var(--line);padding-top:10px}
 .scr.off .erow:last-child{display:none}.scr.off input[type=text]{text-decoration:line-through;color:var(--mute)}
 .scr input[type=checkbox],.chk input{width:24px;height:24px;flex:0 0 auto;margin:0}
@@ -378,14 +384,14 @@ function testa(n){n=String(n||"");let t=TESTE.get(n);if(t!==undefined)return t;
  t=p.length?radice(p[k<0?0:k]):"";TESTE.set(n,t);return t}
 const stessoIng=(a,b)=>{const x=testa(a);return!!x&&x===testa(b)};
 let qIdee="";
-function cercaIdee(el){qIdee=el.value;byId("ideeLista").innerHTML=listaIdee()}
+function cercaIdee(el){qIdee=el.value;byId("ideeLista").innerHTML=listaIdee();fotoRiempi()}
 function listaIdee(){
  const q=norm(qIdee).trim();
  const r=S.ricette.map((x,k)=>{const ns=ingNames(x).filter(i=>!isBase(i)),miss=ns.filter(i=>!have(i));
   const urgent=ns.some(i=>S.frigo.some(f=>stessoIng(f.n,i)&&daysLeft(f.s)!==null&&daysLeft(f.s)<=2));
   return{...x,k,ns,miss,urgent,dc:daCompilare(x)}}).sort((a,b)=>a.dc-b.dc||a.miss.length-b.miss.length||b.urgent-a.urgent).filter(x=>!q||norm(x.n).includes(q)||ingNames(x).some(i=>norm(i).includes(q)));
  if(!r.length)return`<p class="empty">Nessuna ricetta trovata</p>`;
- return r.map(x=>`<div class="idea"><div class="row" style="justify-content:space-between;align-items:center"><button class="link ${x.dc?"rossa":""}" onclick="apriR(${x.k})">${esc(x.n)}</button>
+ return r.map(x=>`<div class="idea"><div class="row" style="justify-content:space-between;align-items:center"><span class="rtit">${x.foto?fotoImg(x.foto,"mini","",`apriR(${x.k})`):""}<button class="link ${x.dc?"rossa":""}" onclick="apriR(${x.k})">${esc(x.n)}</button></span>
  ${x.dc?`<span class="pill bad">da compilare</span>`:x.miss.length?`<span class="pill warn">mancano ${x.miss.length}</span>`:`<span class="pill ok">hai tutto</span>`}</div>
  <p class="sub" style="margin:6px 0">${x.dc?"Mancano ingredienti e procedimento: apri la ricetta e tocca «Modifica».":x.ns.map(i=>have(i)?esc(i):`<s>${esc(i)}</s>`).join(" · ")}${x.urgent?" — usa ciò che scade":""}</p>
  <div class="row"><button class="chip" onclick="apriR(${x.k})">Apri ricetta</button><select id="d-${esc(x.n)}" aria-label="Giorno">${giorni.map(g=>`<option>${g}</option>`).join("")}</select>
@@ -422,6 +428,7 @@ function render(){
  statoRender();
  // la scheda aperta (ricetta o modalità cucina) segue le modifiche; editor e riepilogo no, per non perdere ciò che stai scrivendo
  if(sheet&&(sheet.t==="r"||sheet.t==="c"))renderSheet();
+ fotoRiempi();
 }
 function statoRender(){
  const el=document.getElementById("stato"),t={avvio:["avvio…","tag"],locale:["solo su questo telefono","warn"],sync:[navigator.onLine?"sincronizzato con la famiglia":"offline · si sincronizza al ritorno della rete",navigator.onLine?"ok":"warn"],errore:["sincronizzazione non riuscita","bad"]}[Fam.mode]||["",""];
@@ -505,7 +512,7 @@ function renderSheet(){const el=byId("sheet");
  if(!sheet){el.hidden=true;el.innerHTML="";document.body.style.overflow=""}
  else{el.hidden=false;document.body.style.overflow="hidden";el.innerHTML=`<div class="box">${({r:vRicetta,e:vEditor,c:vCook,k:vCucinato,m:vPick,b:vBozza,a:vImporta,w:vAttesa,s:vScontrino}[sheet.t])()}</div>`}
  const vuole=!!sheet&&sheet.t==="c";if(vuole!==wlOn)wake(vuole);
- tPos()}
+ tPos();fotoRiempi()}
 function sparita(){return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button></div><p class="empty">Questa ricetta non c'è più (forse è stata eliminata da un altro telefono).</p>`}
 const giorniSel=id=>`<select id="${id}" aria-label="Giorno">${giorni.map((g,i)=>`<option ${i===(new Date().getDay()+6)%7?"selected":""}>${g}</option>`).join("")}</select>`;
 function stepper(val,fn,lab){return`<div class="stepper"><span>${lab}</span><button onclick="${fn}(-1)" aria-label="Meno">−</button><b class="big">${val}</b><button onclick="${fn}(1)" aria-label="Più">+</button></div>`}
@@ -514,6 +521,8 @@ function apriR(k){const r=S.ricette[k];if(r)openSheet({t:"r",key:rKey(r),porz:r.
 function vRicetta(){const r=findR(sheet.key);if(!r)return sparita();const f=sheet.porz/r.p;
  let h=`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button><button class="ghost" onclick="editR(sheet.key)">Modifica</button></div>
  <h1 class="${daCompilare(r)?"rossa":""}">${esc(r.n)}</h1>
+ ${r.foto?fotoImg(r.foto,"fotoR","Foto di "+r.n):""}
+ <div class="row" style="margin:8px 0 12px"><button class="chip" onclick="fotoRicetta()">📷 ${r.foto?"Cambia foto":"Aggiungi una foto"}</button></div>
  ${daCompilare(r)?`<div class="alert" style="border-color:var(--bad)"><b class="rossa">Ricetta da compilare.</b> Aggiungi ingredienti o procedimento. <button class="ghost" style="color:var(--accent);font-weight:700" onclick="editR(sheet.key)">Compila ora</button></div>`:""}
  ${stepper(sheet.porz,"porzR","Porzioni")}
  <h2>Ingredienti</h2>${r.ing.length?`<ul>${r.ing.map(x=>{const n=String(x.n).toLowerCase().trim();
@@ -696,15 +705,18 @@ function aggiungiMancanti(){const nuovi=mancantiSettimana().filter(x=>!inSpesa(x
 
 /* Editor ricetta: lavora su una bozza (D), salva solo con «Salva» */
 function editR(key){const r=key!=null?findR(key):null;
- D=r?structuredClone({n:r.n,p:r.p,ing:r.ing,passi:r.passi}):{n:"",p:2,ing:[],passi:[]};
+ D=r?structuredClone({n:r.n,p:r.p,ing:r.ing,passi:r.passi,foto:r.foto||null}):{n:"",p:2,ing:[],passi:[],foto:null};
  D.ing.forEach(x=>{x.q=x.q>0?String(x.q).replace(".",","):""});
  if(!D.ing.length)D.ing.push({n:"",q:"",u:"g"});if(!D.passi.length)D.passi.push("");
  D0=JSON.stringify(D);openSheet({t:"e",key:r?rKey(r):null})}
 function vEditor(){
  const opz=u=>(UNITA.includes(u)?UNITA:[...UNITA,u]).map(o=>`<option value="${esc(o)}" ${o===u?"selected":""}>${o||"—"}</option>`).join("");
  return`<div class="top"><button class="ghost" onclick="annullaEd()">Annulla</button><b>${sheet.key?"Modifica ricetta":"Nuova ricetta"}</b><button class="ghost" onclick="salvaR()">Salva</button></div>
- ${sheet.ai?`<div class="alert">Ho letto la ricetta: controlla nomi, dosi e passi, correggi se serve e poi tocca <b>Salva</b>.</div>`:""}
+ ${sheet.ai==="cerca"?avvisoCerca():sheet.ai?`<div class="alert">Ho letto la ricetta: controlla nomi, dosi e passi, correggi se serve e poi tocca <b>Salva</b>.</div>`:""}
  <h2>Nome</h2><input type="text" value="${esc(D.n)}" oninput="D.n=this.value" placeholder="es. Pasta al forno" style="width:100%;box-sizing:border-box">
+ <h2>Foto</h2><div class="row" style="align-items:center">${D.fotoN?`<img src="${D.fotoN}" alt="Foto scelta" class="mini">`:D.foto?fotoImg(D.foto,"mini","Foto della ricetta"):""}
+  <button class="chip" onclick="fotoEdScegli()">📷 ${D.fotoN||D.foto?"Cambia foto":"Aggiungi una foto"}</button>
+  ${D.fotoN||D.foto?`<button class="ghost" style="color:var(--bad)" onclick="D.foto=null;delete D.fotoN;renderSheet()">Togli foto</button>`:""}</div>
  <label class="stepper"><span>Porzioni</span><input type="number" min="1" max="50" inputmode="numeric" value="${esc(D.p)}" oninput="D.p=this.value" style="width:80px"></label>
  <h2>Ingredienti</h2><p class="sub">Quantità per le porzioni indicate sopra. Per sale, olio… va bene «q.b.».</p>
  ${D.ing.map((x,k)=>`<div class="erow"><input type="text" value="${esc(x.n)}" oninput="D.ing[${k}].n=this.value" placeholder="ingrediente" aria-label="Ingrediente ${k+1}">
@@ -725,12 +737,19 @@ function annullaEd(){if(JSON.stringify(D)!==D0&&!confirm("Uscire senza salvare l
 function salvaR(){const n=String(D.n).trim();if(!n){alert("Scrivi il nome del piatto.");return}
  const ing=D.ing.map(x=>{let q=parseFloat(String(x.q??"").replace(",","."));if(!(q>0)||x.u==="q.b.")q=null;return{n:String(x.n).trim(),q,u:x.u||""}}).filter(x=>x.n);
  const passi=D.passi.map(s=>String(s).trim()).filter(Boolean);
- const old=sheet.key!=null?findR(sheet.key):null;
+ const old=sheet.key!=null?findR(sheet.key):null,prima=old&&old.foto||null;
  const r={...(old||{}),n,p:Math.max(1,Math.round(+D.p)||2),ing,passi,i:ing.map(x=>x.n.toLowerCase()),id:(old&&old.id)||nuovoId()};
+ // la foto può essere cambiata da un altro telefono mentre scrivi: si tocca solo se l'hai cambiata tu
+ if(D.fotoN){r.foto=fotoNuovoId();fotoSalva(r.foto,D.fotoN)}else if(!D.foto&&D0&&JSON.parse(D0).foto)delete r.foto;
  if(old)S.ricette[S.ricette.indexOf(old)]=r;else S.ricette.push(r);
- D=null;persist();render();openSheet({t:"r",key:r.id,porz:r.p})}
+ D=null;persist();render();openSheet({t:"r",key:r.id,porz:r.p});
+ if(prima&&prima!==r.foto)fotoElimina(prima)}
 function eliminaR(){const r=findR(sheet.key);if(!r||!confirm(`Eliminare la ricetta «${r.n}»?`))return;
- S.ricette.splice(S.ricette.indexOf(r),1);D=null;persist();closeSheet();render()}
+ S.ricette.splice(S.ricette.indexOf(r),1);D=null;persist();closeSheet();render();if(r.foto)fotoElimina(r.foto)}
+function fotoEdScegli(){scegliFoto(d=>{if(!D||!sheet||sheet.t!=="e")return;D.fotoN=d;D.foto=null;renderSheet()},FOTO_LATO,FOTO_MAX)}
+// Dalla scheda della ricetta: la foto si salva subito
+function fotoRicetta(){const key=sheet.key;scegliFoto(d=>{const r=findR(key);if(!r)return;const prima=r.foto;
+ r.foto=fotoNuovoId();fotoSalva(r.foto,d);touch();persist();render();if(prima)fotoElimina(prima)},FOTO_LATO,FOTO_MAX)}
 
 /* ---------- Cucinato! ---------- */
 // Per ogni ingrediente (non di base) cerca in frigo/freezer/dispensa, prima ciò che scade prima,
@@ -791,24 +810,70 @@ let aiCtrl=null,fotoPer=null;
 const eurF=n=>n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
 const virgola=q=>q>0?String(q).replace(".",","):"";
 // Fotocamera o galleria (su iPhone lo chiede il sistema); fn riceve la foto già ridotta
-function scegliFoto(fn){fotoPer=fn;const f=byId("foto");f.value="";f.click()}
-async function fotoScelta(inp){const file=inp.files&&inp.files[0],fn=fotoPer;fotoPer=null;if(!file||!fn)return;
- let d;try{d=await riduci(file)}catch{alert("Non riesco ad aprire questa foto. Prova con un'altra o scattane una nuova.");return}fn(d)}
-// Lato lungo max 1600 px, JPEG sotto ~1,1 MB: si invia in fretta anche col telefono
-function riduci(file,lato=1600){return new Promise((ok,ko)=>{const img=new Image(),u=URL.createObjectURL(file);
- img.onload=()=>{URL.revokeObjectURL(u);const k=Math.min(1,lato/Math.max(img.naturalWidth,img.naturalHeight));
-  const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);
-  c.getContext("2d").drawImage(img,0,0,c.width,c.height);let q=.82,d=c.toDataURL("image/jpeg",q);
-  while(d.length>1500000&&q>.4){q-=.12;d=c.toDataURL("image/jpeg",q)}ok(d)};
+function scegliFoto(fn,lato,max){fotoPer={fn,lato,max};const f=byId("foto");f.value="";f.click()}
+async function fotoScelta(inp){const file=inp.files&&inp.files[0],p=fotoPer;fotoPer=null;if(!file||!p)return;
+ let d;try{d=await riduci(file,p.lato,p.max)}catch{alert("Non riesco ad aprire questa foto. Prova con un'altra o scattane una nuova.");return}p.fn(d)}
+// Per Gemini: lato lungo max 1600 px, JPEG sotto ~1,1 MB. Se non basta abbassare la qualità, rimpicciolisce ancora.
+function riduci(file,lato=1600,max=1500000){return new Promise((ok,ko)=>{const img=new Image(),u=URL.createObjectURL(file);
+ img.onload=()=>{URL.revokeObjectURL(u);let k=Math.min(1,lato/Math.max(img.naturalWidth,img.naturalHeight)),d;
+  const c=document.createElement("canvas");
+  for(;;){c.width=Math.max(1,Math.round(img.naturalWidth*k));c.height=Math.max(1,Math.round(img.naturalHeight*k));
+   c.getContext("2d").drawImage(img,0,0,c.width,c.height);let q=.82;d=c.toDataURL("image/jpeg",q);
+   while(d.length>max&&q>.4){q-=.12;d=c.toDataURL("image/jpeg",q)}
+   if(d.length<=max||c.width<200)break;k*=.75}
+  ok(d)};
  img.onerror=()=>{URL.revokeObjectURL(u);ko()};img.src=u})}
+
+/* ---------- Foto delle ricette ----------
+   La foto NON sta nel documento delle ricette (tetto di 1 MB): la ricetta ha solo r.foto = id.
+   Su questo telefono le foto stanno in IndexedDB («cucina-foto»: {d:foto, su:codice famiglia se già inviata});
+   con la famiglia anche in famiglie/{codice}/foto/{id} (Fam.fotoSu/fotoGiu/fotoVia nel modulo Firebase).
+   Ogni foto nuova ha un id nuovo, quindi ogni telefono la scarica una volta sola. */
+const FOTO_LATO=800,FOTO_MAX=200000; // ~150 KB: sta comodo nel documento Firestore (regola: max 300000 caratteri)
+const FOTO=new Map(),FOTO_NO=new Map(),FOTO_IN=new Map(); // id → indirizzo blob: da mostrare; id → ora dell'ultimo tentativo fallito; caricamenti in corso
+// La foto è salvata come testo (data:image/jpeg;base64,…); per mostrarla si usa un blob, così la pagina resta leggera
+function fotoMem(id,d){let b;try{b=atob(d.slice(d.indexOf(",")+1))}catch{return""}
+ const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);
+ const u=URL.createObjectURL(new Blob([a],{type:"image/jpeg"}));FOTO.set(id,u);return u}
+const fotoNuovoId=()=>"f"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+let fotoDbP=null;
+function fotoDb(){return fotoDbP||(fotoDbP=new Promise((ok,ko)=>{const q=indexedDB.open("cucina-foto",1);
+ q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>ok(q.result);q.onerror=()=>ko(q.error)}))}
+async function fotoOp(modo,fn){const db=await fotoDb();return new Promise((ok,ko)=>{const t=db.transaction("f",modo),r=fn(t.objectStore("f"));
+ t.oncomplete=()=>ok(r.result);t.onerror=()=>ko(t.error)})}
+const fotoLeggi=id=>fotoOp("readonly",s=>s.get(id)).catch(()=>null);
+const fotoScrivi=(id,rec)=>fotoOp("readwrite",s=>s.put(rec,id)).catch(e=>console.warn("Foto non salvata",e));
+function fotoSalva(id,d){fotoMem(id,d);fotoScrivi(id,{d,su:null}).then(()=>{if(Fam.fotoSu)Fam.fotoSu(id,d)})}
+function fotoElimina(id){if(FOTO.has(id))URL.revokeObjectURL(FOTO.get(id));FOTO.delete(id);fotoOp("readwrite",s=>s.delete(id)).catch(()=>{});if(Fam.fotoVia)Fam.fotoVia(id)}
+// Prima da questo telefono, poi dalla famiglia; se non c'è, riprova dopo un minuto
+function fotoCarica(id){if(FOTO.has(id))return Promise.resolve(FOTO.get(id));
+ if(FOTO_IN.has(id))return FOTO_IN.get(id);if(Date.now()-(FOTO_NO.get(id)||0)<60000)return Promise.resolve("");
+ const p=(async()=>{let rec=await fotoLeggi(id);
+  if(!(rec&&rec.d)&&Fam.fotoGiu){const d=await Fam.fotoGiu(id).catch(()=>null);if(d){rec={d,su:Fam.code};fotoScrivi(id,rec)}}
+  FOTO_IN.delete(id);if(rec&&rec.d)return fotoMem(id,rec.d);FOTO_NO.set(id,Date.now());return""})();
+ FOTO_IN.set(id,p);return p}
+// L'immagine si mostra subito se è già in memoria, altrimenti la riempie fotoRiempi() dopo il disegno
+function fotoImg(id,cls,alt,click){const d=FOTO.get(id);
+ return`<img class="${cls}" data-foto="${esc(id)}" alt="${esc(alt)}" ${d?`src="${d}"`:""} ${click?`onclick="${click}"`:""}>`}
+function fotoRiempi(){document.querySelectorAll("img[data-foto]:not([src])").forEach(el=>{
+ fotoCarica(el.dataset.foto).then(d=>{if(d)el.src=d;else el.classList.add("nofoto")})})}
+// Toglie da questo telefono le foto che nessuna ricetta usa più (cambiate o tolte da un altro telefono).
+// Al peggio una foto ancora usata si riscarica dalla famiglia.
+async function fotoPulisci(){const usate=new Set(S.ricette.map(r=>r.foto).filter(Boolean));
+ const ids=await fotoOp("readonly",s=>s.getAllKeys()).catch(()=>[]);
+ for(const id of ids)if(!usate.has(id)){const rec=await fotoLeggi(id);if(rec&&rec.su)fotoOp("readwrite",s=>s.delete(id)).catch(()=>{})}}
+setTimeout(fotoPulisci,15000);
+// Foto fatte quando non c'era la famiglia (o non ancora arrivate al server): le manda adesso
+async function fotoInviaMancanti(){if(!Fam.code||!Fam.fotoSu)return;
+ for(const r of S.ricette){if(!r.foto)continue;const rec=await fotoLeggi(r.foto);if(rec&&rec.d&&rec.su!==Fam.code)Fam.fotoSu(r.foto,rec.d)}}
 // Restituisce i dati letti; se qualcosa va storto lancia un errore con un messaggio da mostrare ("" se annullato)
-async function chiediAI(percorso,corpo){
+async function chiediAI(percorso,corpo,tutto){
  if(!navigator.onLine)throw new Error("Sei offline: per leggere foto e testi serve internet. Riprova quando torna la rete.");
  const c=aiCtrl=new AbortController(),t=setTimeout(()=>c.abort(),75000);
  try{const r=await fetch(AI_URL+percorso,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(corpo),signal:c.signal});
   let j=null;try{j=await r.json()}catch{}
   if(!j||!j.ok)throw new Error((j&&j.errore)||`Il servizio ha risposto con un errore (${r.status}). Riprova tra poco.`);
-  return j.dati}
+  return tutto?j:j.dati}
  catch(e){if(e.name==="AbortError")throw new Error(c.annullato?"":"Ci sta mettendo troppo. Riprova tra poco, magari con una foto più nitida.");
   if(e instanceof TypeError)throw new Error("Non riesco a contattare il servizio. Controlla la connessione e riprova.");
   throw e}
@@ -822,21 +887,30 @@ function nuovaDaAI(){openSheet({t:"a",testo:"",foto:null,err:""})}
 function vImporta(){const s=sheet;
  return`<div class="top"><button class="ghost" onclick="closeSheet()">‹ Indietro</button><b>Ricetta da testo o foto</b><span></span></div>
  <p class="sub">Incolla o scrivi la ricetta, oppure fotografa la pagina di un libro o un foglio. Prima di salvare potrai controllare e correggere tutto.</p>
+ <p class="sub"><b>Non hai la ricetta?</b> Scrivi solo cosa vuoi cucinare (es. «torta al limone» o «pasta con le zucchine per 4») e Gemini te ne propone una.</p>
  ${s.err?`<div class="alert" style="border-color:var(--bad)" role="alert">${esc(s.err)}</div>`:""}
- <textarea rows="8" oninput="sheet.testo=this.value" aria-label="Testo della ricetta" placeholder="es. Torta di mele per 6: 300 g di farina, 3 uova, 2 mele… Mescola le uova con lo zucchero…">${esc(s.testo)}</textarea>
+ <textarea rows="8" oninput="sheet.testo=this.value" aria-label="Testo della ricetta o cosa vuoi cucinare" placeholder="es. torta al limone&#10;oppure incolla tutta la ricetta: Torta di mele per 6: 300 g di farina, 3 uova…">${esc(s.testo)}</textarea>
  <div class="row" style="margin-top:10px;align-items:center"><button class="chip" onclick="scegliFoto(d=>{sheet.foto=d;sheet.err='';renderSheet()})">📷 ${s.foto?"Cambia foto":"Aggiungi una foto"}</button>
  ${s.foto?`<img src="${s.foto}" alt="Foto scelta" class="anteprima"><button class="ghost" onclick="sheet.foto=null;renderSheet()" aria-label="Togli la foto">✕</button>`:""}</div>
- <div class="row" style="margin-top:16px"><button onclick="leggiRicetta()" style="flex:1">Leggi la ricetta</button></div>`}
-async function leggiRicetta(){const s=sheet,testo=s.testo.trim();s.err="";
- if(!testo&&!s.foto){s.err="Scrivi il testo della ricetta o aggiungi una foto.";renderSheet();return}
- openSheet({t:"w",msg:"Sto leggendo la ricetta…",torna:s});
- try{const d=await chiediAI("/ricetta",s.foto?{testo,immagine:s.foto}:{testo});
+ <div class="row" style="margin-top:16px"><button onclick="leggiRicetta()" style="flex:1">Leggi o cerca la ricetta</button></div>`}
+// Una riga breve senza foto è una richiesta («torta al limone»): si cerca. Il resto è una ricetta da leggere.
+const eRichiesta=(testo,foto)=>!foto&&testo.length<=150&&!/\n/.test(testo);
+async function leggiRicetta(){const s=sheet,testo=s.testo.trim(),cerca=eRichiesta(testo,s.foto);s.err="";
+ if(!testo&&!s.foto){s.err="Scrivi la ricetta, cosa vuoi cucinare, oppure aggiungi una foto.";renderSheet();return}
+ openSheet({t:"w",msg:cerca?"Cerco una ricetta…":"Sto leggendo la ricetta…",torna:s});
+ try{const j=await chiediAI(cerca?"/cerca":"/ricetta",s.foto?{testo,immagine:s.foto}:{testo},true),d=j.dati;
   if(!sheet||sheet.t!=="w")return;
-  if(!d.ingredienti.length&&!d.passi.length)throw new Error("Non ho trovato una ricetta. Prova con una foto più nitida o incolla il testo.");
-  D={n:d.nome,p:d.porzioni,ing:d.ingredienti.map(x=>({n:x.n,q:virgola(x.q),u:x.u})),passi:d.passi};
+  if(!d.ingredienti.length&&!d.passi.length)throw new Error(cerca?"Non ho trovato una ricetta per questa richiesta. Prova a scriverla in un altro modo, es. «torta al limone».":"Non ho trovato una ricetta. Prova con una foto più nitida o incolla il testo.");
+  D={n:d.nome,p:d.porzioni,ing:d.ingredienti.map(x=>({n:x.n,q:virgola(x.q),u:x.u})),passi:d.passi,foto:null};
   if(!D.ing.length)D.ing.push({n:"",q:"",u:"g"});if(!D.passi.length)D.passi.push("");
-  D0="";openSheet({t:"e",key:null,ai:true})}
+  D0="";openSheet({t:"e",key:null,ai:cerca?"cerca":true,web:!!j.web,fonti:Array.isArray(j.fonti)?j.fonti:[]})}
  catch(e){if(!e.message||!sheet||sheet.t!=="w")return;s.err=e.message;openSheet(s)}}
+// Da dove viene la ricetta proposta: dalla ricerca Google (con le pagine) o solo dalle conoscenze di Gemini
+function avvisoCerca(){const f=sheet.fonti.filter(x=>/^https:\/\//.test(x.url));
+ return`<div class="alert"><b>Ricetta proposta da Gemini${sheet.web?", cercando sul web":""}.</b> ${sheet.web
+  ?(f.length?`<span class="fonti">Fonti: ${f.map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.titolo)}</a>`).join(" · ")}.</span>`:"")
+  :"L'ha scritta con le sue conoscenze, senza cercare su internet: non viene da un sito preciso."}
+  Controlla dosi, tempi e passi, correggi se serve e poi tocca <b>Salva</b>.</div>`}
 
 /* Scontrino da foto → revisione → frigo/freezer/dispensa e budget */
 function leggiScontrino(){scegliFoto(async foto=>{
@@ -1078,9 +1152,21 @@ async function avvia(){
   await F.waitForPendingWrites(db);
   await F.getDocsFromServer(F.collection(db,"famiglie",code,"sezioni"))};
 
+ // Foto delle ricette: un documento per foto, fuori dalle sezioni (vedi fotoCarica nello script principale).
+ // Offline le scritture restano in coda nella cache di Firestore e partono quando torna la rete.
+ const docFoto=(code,id)=>F.doc(db,"famiglie",code,"foto",id);
+ Fam.fotoSu=(id,d)=>{const code=Fam.code;if(!code)return;
+  F.setDoc(docFoto(code,id),{d,t:F.serverTimestamp(),by:uid})
+   .then(()=>fotoLeggi(id)).then(rec=>{if(rec&&rec.d===d)fotoScrivi(id,{d,su:code})})
+   .catch(e=>console.warn("Foto non inviata alla famiglia",e.code||e))};
+ Fam.fotoGiu=async id=>{const code=Fam.code;if(!code)return null;
+  const s=await F.getDoc(docFoto(code,id)),d=s.exists()&&s.data().d;return typeof d==="string"?d:null};
+ Fam.fotoVia=id=>{const code=Fam.code;if(code)F.deleteDoc(docFoto(code,id)).catch(e=>console.warn("Foto non tolta",e.code||e))};
+
  function collega(code){
   stacca.forEach(f=>f());stacca=[];last={};sporche.clear();pronte.clear();
   Fam.code=code;Fam.mode="sync";Fam.msg="";aggiorna();
+  setTimeout(fotoInviaMancanti,3000);FOTO_NO.clear();
   for(const n of SEZ){
    last[n]=JSON.stringify(secVal(n));
    stacca.push(F.onSnapshot(docSez(code,n),{includeMetadataChanges:false},snap=>{

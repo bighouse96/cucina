@@ -3,13 +3,16 @@
    Endpoint:
      POST /scontrino  {immagine:"data:image/jpeg;base64,..."}
      POST /ricetta    {testo:"..."} oppure {immagine:"data:..."} (o entrambi)
-   Risposta: {ok:true, dati:{...}} oppure {ok:false, errore:"messaggio in italiano"} */
+     POST /cerca      {testo:"torta al limone"} → propone una ricetta (con la ricerca Google se disponibile)
+   Risposta: {ok:true, dati:{...}} oppure {ok:false, errore:"messaggio in italiano"}
+   /cerca aggiunge web:true|false e fonti:[{titolo,url}] (le pagine usate dalla ricerca Google). */
 
 const ORIGINI_DEFAULT = "https://bighouse96.github.io";
 const MODELLI_DEFAULT = "gemini-3.8-flash,gemini-3.5-flash-lite"; // il secondo è la riserva se il primo è esaurito
 const MAX_BODY = 6_000_000;      // byte della richiesta
 const MAX_IMMAGINE = 4_000_000;  // caratteri base64 (~3 MB di foto)
 const MAX_TESTO = 12_000;        // caratteri di ricetta incollata
+const MAX_RICHIESTA = 300;       // caratteri di una ricerca («torta al limone per 6»)
 const LIMITE_RICHIESTE = 30;     // per indirizzo IP...
 const FINESTRA_MS = 10 * 60_000; // ...ogni 10 minuti
 const ATTESA_MS = 25_000;        // tempo massimo per modello, poi si passa alla riserva
@@ -83,6 +86,15 @@ const PROMPT_RICETTA = `Sei l'assistente di una famiglia italiana. Dal testo e/o
 - passi: il procedimento diviso in passi brevi e chiari, nell'ordine, senza numerazione.
 Non inventare ingredienti che non ci sono. Se il contenuto non è una ricetta, restituisci ingredienti e passi vuoti e nome "".`;
 
+const PROMPT_CERCA = `Sei l'assistente di una famiglia italiana. L'utente chiede una ricetta (es. "torta al limone", "pasta veloce con le zucchine per 4").
+Proponi UNA ricetta casalinga, collaudata e realistica, in italiano, che risponda alla richiesta.
+- nome: titolo breve. porzioni: quelle richieste, altrimenti 4.
+- ingredienti: dosi precise per le porzioni indicate. n = nome minuscolo senza quantità; q = numero (punto per i decimali); u = unità.
+  Usa g, kg, ml, l, pz, cucchiai, cucchiaini; per sale, pepe e simili q null e u "q.b.".
+- passi: procedimento in passi brevi e chiari, nell'ordine, senza numerazione, con tempi e temperature (es. "Cuoci in forno a 180 °C per 40 minuti").
+Se la richiesta contiene già il testo di una ricetta, strutturala così com'è senza cambiarla.
+Se la richiesta non riguarda il cibo, restituisci ingredienti e passi vuoti e nome "".`;
+
 /* ---------- Utilità ---------- */
 const origini = env => (env.ORIGINI || ORIGINI_DEFAULT).split(",").map(s => s.trim()).filter(Boolean);
 
@@ -129,12 +141,13 @@ function leggiImmagine(s) {
   return { mime: m[1], dati: m[2] };
 }
 
-async function chiediGemini(env, parti, schema) {
+async function chiediGemini(env, parti, schema, opz = {}) {
   if (!env.GEMINI_KEY) return { errore: "Il servizio non è configurato (manca la chiave Gemini).", stato: 500 };
   const modelli = (env.MODELLI || MODELLI_DEFAULT).split(",").map(s => s.trim()).filter(Boolean);
   const corpo = JSON.stringify({
     contents: [{ role: "user", parts: parti }],
-    generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.1 },
+    ...(opz.tools ? { tools: opz.tools } : {}),
+    generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: opz.temperatura ?? 0.1 },
   });
   let ultimo = null;
   for (const modello of modelli) {
@@ -159,7 +172,7 @@ async function chiediGemini(env, parti, schema) {
         const motivo = (cand && cand.finishReason) || (j.promptFeedback && j.promptFeedback.blockReason) || "vuota";
         return { errore: `Gemini non ha dato una risposta utilizzabile (${motivo}). Prova con una foto più nitida.`, stato: 502 };
       }
-      try { return { dati: JSON.parse(testo), modello }; }
+      try { return { dati: JSON.parse(testo), modello, grounding: cand.groundingMetadata || null }; }
       catch { return { errore: "Risposta di Gemini non valida. Riprova.", stato: 502 }; }
     }
     const dettaglio = (await r.text()).slice(0, 300);
@@ -171,8 +184,8 @@ async function chiediGemini(env, parti, schema) {
       continue; // prova il modello di riserva
     }
     if (r.status === 400 && /API key/i.test(dettaglio)) return { errore: "La chiave Gemini non è valida: controlla il secret GEMINI_KEY.", stato: 500 };
-    if (r.status === 403) return { errore: "La chiave Gemini non ha accesso a questo modello.", stato: 500 };
-    return { errore: `Errore di Gemini (${r.status}). Riprova.`, stato: 502 };
+    if (r.status === 403) return { errore: "La chiave Gemini non ha accesso a questo modello.", stato: 500, rifiuto: true };
+    return { errore: `Errore di Gemini (${r.status}). Riprova.`, stato: 502, rifiuto: r.status === 400 };
   }
   return ultimo || { errore: "Nessun modello disponibile.", stato: 500 };
 }
@@ -204,6 +217,29 @@ function pulisciRicetta(d) {
   return { nome: testo(d.nome, 80), porzioni, ingredienti, passi };
 }
 
+// Pagine web usate dalla ricerca Google (i link passano da un indirizzo di Google che rimanda alla pagina)
+function fonti(g) {
+  const visti = new Set();
+  return ((g && g.groundingChunks) || []).map(c => c.web).filter(w => w && /^https:\/\//.test(w.uri || ""))
+    .map(w => ({ titolo: testo(w.title || w.domain || "pagina web", 80), url: String(w.uri).slice(0, 2000) }))
+    .filter(f => !visti.has(f.titolo) && visti.add(f.titolo)).slice(0, 3);
+}
+
+/* Ricerca: con RICERCA_WEB = "si" prova prima la ricerca Google; se non è disponibile o è esaurita,
+   Gemini risponde con le sue conoscenze e l'app lo dice. Nel piano gratuito (prova del 3 nov 2026)
+   la ricerca Google dà sempre 429 «quota esaurita», quindi in wrangler.toml è spenta. */
+async function cercaRicetta(env, richiesta) {
+  const parti = [{ text: PROMPT_CERCA }, { text: "Richiesta: " + richiesta }];
+  if (env.RICERCA_WEB === "si") {
+    const r = await chiediGemini(env, parti, SCHEMA_RICETTA, { tools: [{ google_search: {} }], temperatura: 0.4 });
+    if (!r.errore) return { ...r, web: true, fonti: fonti(r.grounding) };
+    console.log("Ricerca Google non riuscita: " + r.errore);
+    if (r.stato === 500 && !r.rifiuto) return r; // chiave mancante o non valida: inutile riprovare
+  }
+  const r = await chiediGemini(env, parti, SCHEMA_RICETTA, { temperatura: 0.4 });
+  return r.errore ? r : { ...r, web: false, fonti: [] };
+}
+
 /* ---------- Gestore ---------- */
 export default {
   async fetch(request, env) {
@@ -214,7 +250,7 @@ export default {
     if (request.method === "GET" && url.pathname === "/") return risposta({ ok: true, servizio: "Cucina di Casa" }, 200, origin, env);
     if (!origin || !origini(env).includes(origin)) return errore("Origine non autorizzata.", 403, origin, env);
     if (request.method !== "POST") return errore("Metodo non consentito.", 405, origin, env);
-    if (url.pathname !== "/scontrino" && url.pathname !== "/ricetta") return errore("Indirizzo sconosciuto.", 404, origin, env);
+    if (!["/scontrino", "/ricetta", "/cerca"].includes(url.pathname)) return errore("Indirizzo sconosciuto.", 404, origin, env);
 
     const ip = request.headers.get("CF-Connecting-IP") || "sconosciuto";
     if (await troppeRichieste(ip, env)) return errore("Troppe richieste ravvicinate. Aspetta qualche minuto.", 429, origin, env);
@@ -241,6 +277,15 @@ export default {
       const r = await chiediGemini(env, parti, SCHEMA_SCONTRINO);
       if (r.errore) return errore(r.errore, r.stato, origin, env);
       return risposta({ ok: true, modello: r.modello, dati: pulisciScontrino(r.dati) }, 200, origin, env);
+    }
+
+    if (url.pathname === "/cerca") {
+      const q = typeof corpo.testo === "string" ? corpo.testo.trim() : "";
+      if (!q) return errore("Scrivi che ricetta cerchi.", 400, origin, env);
+      if (q.length > MAX_RICHIESTA) return errore("La richiesta è troppo lunga.", 413, origin, env);
+      const r = await cercaRicetta(env, q);
+      if (r.errore) return errore(r.errore, r.stato, origin, env);
+      return risposta({ ok: true, modello: r.modello, web: r.web, fonti: r.fonti, dati: pulisciRicetta(r.dati) }, 200, origin, env);
     }
 
     // /ricetta

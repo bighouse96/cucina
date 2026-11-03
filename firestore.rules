@@ -47,6 +47,24 @@ service cloud.firestore {
           && datiValidi(request.resource.data);
         allow delete: if false;
       }
+
+      // Foto delle ricette: una per documento, JPEG compresso dall'app (~150 KB, qui max 300000 caratteri)
+      match /foto/{foto} {
+        allow get: if autenticato()
+          && exists(/databases/$(database)/documents/famiglie/$(famiglia));
+        allow list: if false;
+        allow create, update: if autenticato()
+          && foto.matches('^f[a-z0-9]{6,40}$')
+          && exists(/databases/$(database)/documents/famiglie/$(famiglia))
+          && request.resource.data.keys().hasOnly(['d', 't', 'by'])
+          && request.resource.data.by == request.auth.uid
+          && request.resource.data.t == request.time
+          && request.resource.data.d is string
+          && request.resource.data.d.size() <= 300000
+          && request.resource.data.d.matches('^data:image/jpeg;base64,[A-Za-z0-9+/=]+$');
+        allow delete: if autenticato()
+          && exists(/databases/$(database)/documents/famiglie/$(famiglia));
+      }
     }
 
     // Tutto il resto è chiuso
