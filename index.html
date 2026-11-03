@@ -496,7 +496,7 @@ function durSec(m){let s;if(m[1])s=1800;else if(m[2])s=3600;
  else{const n=parseFloat(m[3].replace(",",".")),u=m[4].toLowerCase();s=n*(u[0]==="o"||u==="h"?3600:u.startsWith("min")?60:1)}
  return Math.round(s+(m[5]?1800:0))}
 // Durate senza minuti (es. pasta «per il tempo indicato sulla confezione»): il timer chiede i minuti
-const VAGO=/(?:il\s+)?tempo\s+(?:indicato|riportato|scritto|consigliato|necessario)(?:\s+(?:sulla|nella|in)\s+confezione)?|(?:come|quanto)\s+indicato\s+(?:sulla|nella)\s+confezione|secondo\s+(?:la|le\s+istruzioni\s+della)\s+confezione|finch[ée]\s+(?:non\s+)?(?:è|sia|sarà)\s+al\s+dente|al\s+dente/gi;
+const VAGO=/(?:il\s+)?tempo\s+(?:indicato|riportato|scritto|consigliato|necessario)(?:\s+(?:sulla|nella|in)\s+confezione)?/gi;
 function vagoHtml(t,pre){let h="",i=0;
  for(const m of t.matchAll(VAGO)){
   h+=esc(t.slice(i,m.index))+`<button class="tchip" data-l="${esc((pre?pre+" · ":"")+m[0])}" onclick="tManual(this.dataset.l)" aria-label="Avvia timer, scegli i minuti">⏱ ${esc(m[0])}</button>`;i=m.index+m[0].length}
